@@ -76,7 +76,11 @@ const handleSelect = (key: string) => {
 <style>
 body {
   margin: 0px;
-  font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Helvetica Neue,
+    sans-serif;
 }
 
 header {
