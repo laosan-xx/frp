@@ -2,23 +2,23 @@
   <div>
     <el-page-header
       :icon="null"
-      style="width: 100%; margin-left: 30px; margin-bottom: 20px"
+      style="margin-bottom: 10px"
     >
       <template #title>
         <span>{{ proxyType }}</span>
       </template>
       <template #content> </template>
       <template #extra>
-        <div class="flex items-center" style="margin-right: 30px">
+        <div class="flex items-center">
           <el-popconfirm
             title="Are you sure to clear all data of offline proxies?"
             @confirm="clearOfflineProxies"
           >
             <template #reference>
-              <el-button>ClearOfflineProxies</el-button>
+              <el-button>清理离线</el-button>
             </template>
           </el-popconfirm>
-          <el-button @click="$emit('refresh')">Refresh</el-button>
+          <el-button @click="$emit('refresh')">刷新</el-button>
         </div>
       </template>
     </el-page-header>
@@ -28,14 +28,14 @@
       :default-sort="{ prop: 'name', order: 'ascending' }"
       style="width: 100%"
     >
-      <el-table-column type="expand">
+      <el-table-column type="expand" width="30px">
         <template #default="props">
           <ProxyViewExpand :row="props.row" :proxyType="proxyType" />
         </template>
       </el-table-column>
-      <el-table-column label="Name" prop="name" sortable> </el-table-column>
-      <el-table-column label="Port" prop="port" sortable> </el-table-column>
-      <el-table-column label="Connections" prop="conns" sortable>
+      <el-table-column label="Name" prop="name" sortable min-width="130px"> </el-table-column>
+      <el-table-column label="Port" prop="port" sortable min-width="80px"> </el-table-column>
+      <el-table-column v-if="!isMdOrBelow" label="Connections" prop="conns" sortable>
       </el-table-column>
       <!-- <el-table-column
         label="Traffic In"
@@ -51,23 +51,21 @@
         sortable
       >
       </el-table-column> -->
-      <el-table-column label="ClientVersion" prop="clientVersion" sortable>
+      <el-table-column v-if="!isSmOrBelow" label="ClientVersion" prop="clientVersion" sortable min-width="130px">
       </el-table-column>
-      <el-table-column label="Status" prop="status" sortable>
+      <el-table-column label="Status" prop="status" sortable min-min-width="90px">
         <template #default="scope">
-          <el-tag v-if="scope.row.status === 'online'" type="success">{{
-            scope.row.status
-          }}</el-tag>
-          <el-tag v-else type="danger">{{ scope.row.status }}</el-tag>
+          <el-tag v-if="scope.row.status === 'online'" type="success">在线</el-tag>
+          <el-tag v-else type="danger">离线</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Operations">
+      <el-table-column label="Operations" min-min-width="90px">
         <template #default="scope">
           <el-button
             type="primary"
             :name="scope.row.name"
             @click="dialogVisibleName = scope.row.name; dialogVisible = true"
-            >Traffic
+            >流量
           </el-button>
         </template>
       </el-table-column>
@@ -90,6 +88,7 @@ import type { BaseProxy } from '../utils/proxy.js'
 import { ElMessage } from 'element-plus'
 import ProxyViewExpand from './ProxyViewExpand.vue'
 import { ref } from 'vue'
+import { useBreakpoints } from '../utils/breakpoints'
 
 defineProps<{
   proxies: BaseProxy[]
@@ -100,6 +99,8 @@ const emit = defineEmits(['refresh'])
 
 const dialogVisible = ref(false)
 const dialogVisibleName = ref("")
+// 全局断点
+const { isSmOrBelow, isMdOrBelow } = useBreakpoints()
 
 const formatTrafficIn = (row: BaseProxy, _: TableColumnCtx<BaseProxy>) => {
   return Humanize.fileSize(row.trafficIn)
@@ -180,6 +181,10 @@ html.dark .table-container {
   --el-table-border-color: #e2e8f0;
   --el-table-header-bg-color: #f7fafc;
   --el-table-row-hover-bg-color: #f1f5f9;
+}
+
+.el-table :deep(.cell) {
+  padding: 0;
 }
 
 html.dark .el-table {
@@ -272,6 +277,7 @@ html.dark .traffic-dialog :deep(.el-dialog__title) {
 .traffic-dialog :deep(.el-dialog__body) {
   padding: 24px;
 }
+
 
 /* 响应式设计 */
 @media (max-width: 768px) {

@@ -28,7 +28,8 @@
         <!-- 侧边导航 - 桌面端显示 -->
         <aside class="sidebar-desktop">
           <el-menu
-            default-active="/"
+            :default-active="activeMenu"
+            :default-openeds="defaultOpeneds"
             mode="vertical"
             router
             @select="handleSelect"
@@ -69,7 +70,8 @@
               <span class="close-icon" @click="isMobileMenuOpen = false">×</span>
             </div>
             <el-menu
-              default-active="/"
+              :default-active="activeMenu"
+              :default-openeds="defaultOpeneds"
               mode="vertical"
               router
               @select="handleMobileSelect"
@@ -120,13 +122,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useDark, useToggle } from '@vueuse/core'
+import { useRoute } from 'vue-router'
 
 const isDark = useDark()
 const darkmodeSwitch = ref(isDark)
 const toggleDark = useToggle(isDark)
 const isMobileMenuOpen = ref(false)
+
+const route = useRoute()
+const activeMenu = computed(() => route.path)
+const defaultOpeneds = computed(() => (route.path.startsWith('/proxies') ? ['/proxies'] : []))
 
 const handleSelect = (key: string) => {
   if (key == '') {
@@ -194,11 +201,6 @@ html.dark .app-header {
   display: inline;
 }
 
-/* @media (min-width: 768px) {
-  .brand-text {
-    display: inline;
-  }
-} */
 
 .theme-switch {
   --el-switch-on-color: #4a5568;
@@ -281,6 +283,14 @@ html.dark .menu-sub:hover {
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   min-height: 600px;
+}
+
+/* 允许 Grid/Flex 子项在内容过宽时正常收缩 */
+.content-area,
+.content-container {
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
 }
 
 html.dark .content-container {
@@ -399,7 +409,14 @@ html.dark .mobile-header {
 
   .brand-logo {
     font-size: 24px;
-    padding: 6px 12px;
+    padding: 4px 12px;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .content-container {
+    padding: 10px;
   }
 }
 

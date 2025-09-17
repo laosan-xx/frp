@@ -76,21 +76,6 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   opacity: 0;
 }
 
-/* 按钮样式优化 */
-.el-button {
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.el-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.el-button:active {
-  transform: translateY(0);
-}
 
 /* 卡片阴影优化 */
 .el-card {
@@ -127,10 +112,10 @@ html.dark .el-card:hover {
 
 /* 标签样式优化 */
 .el-tag {
-  border-radius: 20px;
-  font-weight: 500;
+  /* border-radius: 20px; */
+  /* font-weight: 500;
   padding: 4px 12px;
-  font-size: 12px;
+  font-size: 12px; */
 }
 
 /* 对话框样式优化 */
@@ -163,11 +148,6 @@ html.dark .el-dialog__header {
     padding: 20px;
   }
 
-  /* 移动端按钮优化 */
-  .el-button {
-    padding: 12px 20px;
-    min-height: 44px; /* 最小触摸目标尺寸 */
-  }
 
   /* 移动端表单元素优化 */
   .el-input__inner,

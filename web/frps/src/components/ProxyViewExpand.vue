@@ -261,7 +261,7 @@ html.dark ul li span:not(.annotation-key) {
   }
 
   .el-form-item :deep(.el-form-item__content) {
-    margin-left: 100px !important;
+    margin-left: 40px !important;
   }
 }
 </style>

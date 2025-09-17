@@ -3,7 +3,7 @@
     <el-row>
       <el-col :md="11">
         <!-- 大屏幕使用表单 -->
-        <div class="source hidden-sm-and-down">
+        <div v-if="!isSmOrBelow" class="source">
           <el-form
             label-position="left"
             label-width="220px"
@@ -66,7 +66,7 @@
           </el-form>
         </div>
         <!-- 小屏幕使用描述列表 -->
-        <el-descriptions :column="1" border class="hidden-md-and-up">
+        <el-descriptions v-if="isSmOrBelow" :column="1" border>
           <el-descriptions-item label="Version">
             <span class="desc-span">{{ data.version }}</span>
           </el-descriptions-item>
@@ -81,25 +81,25 @@
           </el-descriptions-item>
           <el-descriptions-item
             label="QUIC Bind Port"
-            v-if="data.quicBindPort != 0"
+            v-if="data.quicBindPort != 0 && !isSmOrBelow"
           >
             <span class="desc-span">{{ data.quicBindPort }}</span>
           </el-descriptions-item>
           <el-descriptions-item
             label="HTTP Port"
-            v-if="data.vhostHTTPPort != 0"
+            v-if="data.vhostHTTPPort != 0 && !isSmOrBelow"
           >
             <span class="desc-span">{{ data.vhostHTTPPort }}</span>
           </el-descriptions-item>
           <el-descriptions-item
             label="HTTPS Port"
-            v-if="data.vhostHTTPSPort != 0"
+            v-if="data.vhostHTTPSPort != 0 && !isSmOrBelow"
           >
             <span class="desc-span">{{ data.vhostHTTPSPort }}</span>
           </el-descriptions-item>
           <el-descriptions-item
             label="TCPMux HTTPConnect Port"
-            v-if="data.tcpmuxHTTPConnectPort != 0"
+            v-if="data.tcpmuxHTTPConnectPort != 0 && !isSmOrBelow"
           >
             <span class="desc-span">{{ data.tcpmuxHTTPConnectPort }}</span>
           </el-descriptions-item>
@@ -109,10 +109,13 @@
           >
             <LongSpan :content="data.subdomainHost" :length="30"></LongSpan>
           </el-descriptions-item>
-          <el-descriptions-item label="Max PoolCount">
+          <el-descriptions-item v-if="!isSmOrBelow" label="Max PoolCount">
             <span class="desc-span">{{ data.maxPoolCount }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="Max Ports Per Client">
+          <el-descriptions-item
+            v-if="!isSmOrBelow"
+            label="Max Ports Per Client"
+          >
             <span class="desc-span">{{ data.maxPortsPerClient }}</span>
           </el-descriptions-item>
           <el-descriptions-item
@@ -156,6 +159,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DrawTrafficChart, DrawProxyChart } from '../utils/chart'
 import LongSpan from './LongSpan.vue'
+import { useBreakpoints } from '../utils/breakpoints'
 
 let data = ref({
   version: '',
@@ -175,6 +179,9 @@ let data = ref({
   curConns: 0,
   proxyCounts: 0,
 })
+
+// 全局断点
+const { isSmOrBelow, isMdAndUp } = useBreakpoints()
 
 const fetchData = () => {
   fetch('../api/serverinfo', { credentials: 'include' })
@@ -347,20 +354,18 @@ html.dark .chart-container {
 #traffic,
 #proxies {
   width: 100% !important;
-  margin-bottom: 24px;
-}
-
-#proxies {
   margin-bottom: 0;
 }
 
-.network-traffic {
-  padding-left: 16px;
+
+@media (min-width: 992px) {
+  .network-traffic {
+    padding-left: 16px;
+  }
 }
 
 @media (max-width: 992px) {
   .network-traffic {
-    padding-left: 0;
     margin-top: 16px;
   }
 }
@@ -387,9 +392,9 @@ html.dark .chart-container {
     font-size: 13px;
   }
 
-  #traffic, #proxies {
+  #traffic,
+  #proxies {
     height: 200px !important;
-    margin-bottom: 16px;
   }
 }
 
@@ -417,14 +422,15 @@ html.dark .chart-container {
     width: 100%;
   }
 
-  #traffic, #proxies {
+  #traffic,
+  #proxies {
     height: 180px !important;
   }
 }
 
 /* 加载状态 */
 .server_info .el-form-item__content:empty::before {
-  content: "Loading...";
+  content: 'Loading...';
   color: #a0aec0;
   font-style: italic;
 }
