@@ -1,5 +1,5 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="sudp" @refresh="fetchData"/>
+  <ProxyView :proxies="proxies" proxyType="SUDP" @refresh="fetchData"/>
 </template>
 
 <script setup lang="ts">

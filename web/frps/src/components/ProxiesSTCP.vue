@@ -1,5 +1,5 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="stcp" @refresh="fetchData"/>
+  <ProxyView :proxies="proxies" proxyType="STCP" @refresh="fetchData"/>
 </template>
 
 <script setup lang="ts">

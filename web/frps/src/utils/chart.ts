@@ -3,6 +3,8 @@ import * as echarts from 'echarts/core'
 import { PieChart, BarChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LabelLayout } from 'echarts/features'
+import { useDark } from '@vueuse/core'
+import { watch } from 'vue'
 
 import {
   TitleComponent,
@@ -22,15 +24,48 @@ echarts.use([
   GridComponent,
 ])
 
+// 获取深色模式状态
+const isDark = useDark()
+
+// 存储所有图表实例以便主题切换
+const chartInstances = new Map<string, echarts.ECharts>()
+
+// 监听主题变化
+watch(isDark, (newIsDark) => {
+  const theme = newIsDark ? 'dark' : 'macarons'
+  // 更新所有图表实例的主题
+  chartInstances.forEach((chart, elementId) => {
+    const currentOption = chart.getOption()
+    const domElement = chart.getDom() // 在dispose前获取DOM元素
+    chart.dispose()
+    setTimeout(() => {
+
+      const newChart = echarts.init(domElement, theme)
+      newChart.setOption(currentOption)
+      // 更新Map中的实例
+      chartInstances.set(elementId, newChart)
+    }, 500);
+  })
+})
+
+// 获取当前主题
+function getCurrentTheme() {
+  return isDark.value ? 'dark' : 'macarons'
+}
+
 function DrawTrafficChart(
   elementId: string,
   trafficIn: number,
-  trafficOut: number
+  trafficOut: number,
 ) {
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons'
+    getCurrentTheme(),
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+
   myChart.showLoading()
 
   const option = {
@@ -82,8 +117,12 @@ function DrawTrafficChart(
 function DrawProxyChart(elementId: string, serverInfo: any) {
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons'
+    getCurrentTheme()
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+
   myChart.showLoading()
 
   const option = {
@@ -208,9 +247,13 @@ function DrawProxyTrafficChart(
 
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons',
+    getCurrentTheme(),
     params
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+
   myChart.showLoading()
 
   trafficInArr = trafficInArr.reverse()

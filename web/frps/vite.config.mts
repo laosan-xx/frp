@@ -27,9 +27,10 @@ export default defineConfig({
     assetsDir: '',
   },
   server: {
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:7000', // 替换成你自己的frp服务地址
+        target: 'https://frp.2026178.xyz', // 替换成你自己的frp服务地址
         changeOrigin: true,
       },
     },

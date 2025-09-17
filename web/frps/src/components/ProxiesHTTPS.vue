@@ -1,5 +1,5 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="https" @refresh="fetchData"/>
+  <ProxyView :proxies="proxies" proxyType="HTTPS" @refresh="fetchData"/>
 </template>
 
 <script setup lang="ts">
