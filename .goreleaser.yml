@@ -20,3 +20,5 @@ release:
   # Defaults to empty.
   extra_files:
     - glob: ./release/packages/*
+changelog:
+  skip: true
