@@ -104,11 +104,6 @@ html.dark .el-card:hover {
   border-radius: 8px;
 }
 
-.el-input__inner:focus,
-.el-textarea__inner:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
-}
 
 /* 标签样式优化 */
 .el-tag {
@@ -135,6 +130,15 @@ html.dark .el-dialog__header {
 
 .el-dialog__body {
   padding: 24px;
+}
+
+/* 导航菜单优化 */
+.el-menu-item,
+.el-sub-menu__title,
+.el-submenu__title {
+  min-height: 46px;
+  line-height: 46px;
+  height: auto;
 }
 
 /* 响应式字体大小 */
@@ -212,12 +216,7 @@ html.dark .el-dialog__header {
     padding: 8px 4px;
   }
 
-  /* 导航菜单优化 */
-  .el-menu-item,
-  .el-submenu__title {
-    min-height: 48px;
-    line-height: 48px;
-  }
+
 
   /* 防止移动端横屏时字体过小 */
   @media (max-height: 500px) {

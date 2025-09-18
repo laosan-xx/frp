@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <!-- 顶部导航栏 -->
-    <header class="app-header">
+    <!-- 顶部导航栏（登录页不显示） -->
+    <header class="app-header" v-if="$route.meta.layout !== 'auth'">
       <div class="header-container">
         <div class="brand">
           <a href="#" class="brand-link">
@@ -22,8 +22,8 @@
       </div>
     </header>
 
-    <!-- 主内容区域 -->
-    <main class="app-main">
+    <!-- 主内容区域（如果是登录页，使用简化布局） -->
+    <main class="app-main" v-if="$route.meta.layout !== 'auth'">
       <div class="main-container">
         <!-- 侧边导航 - 桌面端显示 -->
         <aside class="sidebar-desktop">
@@ -47,27 +47,51 @@
                 <span class="menu-icon">🔗</span>
                 <span class="menu-text">Proxies</span>
               </template>
-              <el-menu-item index="/proxies/tcp" class="submenu-item">TCP</el-menu-item>
-              <el-menu-item index="/proxies/udp" class="submenu-item">UDP</el-menu-item>
-              <el-menu-item index="/proxies/http" class="submenu-item">HTTP</el-menu-item>
-              <el-menu-item index="/proxies/https" class="submenu-item">HTTPS</el-menu-item>
-              <el-menu-item index="/proxies/tcpmux" class="submenu-item">TCPMUX</el-menu-item>
-              <el-menu-item index="/proxies/stcp" class="submenu-item">STCP</el-menu-item>
-              <el-menu-item index="/proxies/sudp" class="submenu-item">SUDP</el-menu-item>
+              <el-menu-item index="/proxies/tcp" class="submenu-item"
+                >TCP</el-menu-item
+              >
+              <el-menu-item index="/proxies/udp" class="submenu-item"
+                >UDP</el-menu-item
+              >
+              <el-menu-item index="/proxies/http" class="submenu-item"
+                >HTTP</el-menu-item
+              >
+              <el-menu-item index="/proxies/https" class="submenu-item"
+                >HTTPS</el-menu-item
+              >
+              <el-menu-item index="/proxies/tcpmux" class="submenu-item"
+                >TCPMUX</el-menu-item
+              >
+              <el-menu-item index="/proxies/stcp" class="submenu-item"
+                >STCP</el-menu-item
+              >
+              <el-menu-item index="/proxies/sudp" class="submenu-item"
+                >SUDP</el-menu-item
+              >
             </el-sub-menu>
           </el-menu>
         </aside>
 
         <!-- 移动端汉堡菜单 -->
-        <div class="mobile-menu-toggle" @click="isMobileMenuOpen = !isMobileMenuOpen">
+        <div
+          class="mobile-menu-toggle"
+          @click="isMobileMenuOpen = !isMobileMenuOpen"
+        >
           <span class="hamburger-icon">☰</span>
         </div>
 
         <!-- 移动端侧边栏 -->
         <transition name="slide-right">
-          <aside :class="['sidebar-mobile', { 'mobile-menu-open': isMobileMenuOpen }]">
+          <aside
+            :class="[
+              'sidebar-mobile',
+              { 'mobile-menu-open': isMobileMenuOpen },
+            ]"
+          >
             <div class="mobile-header">
-              <span class="close-icon" @click="isMobileMenuOpen = false">×</span>
+              <span class="close-icon" @click="isMobileMenuOpen = false"
+                >×</span
+              >
             </div>
             <el-menu
               :default-active="activeMenu"
@@ -89,13 +113,27 @@
                   <span class="menu-icon">🔗</span>
                   <span class="menu-text">Proxies</span>
                 </template>
-                <el-menu-item index="/proxies/tcp" class="submenu-item">TCP</el-menu-item>
-                <el-menu-item index="/proxies/udp" class="submenu-item">UDP</el-menu-item>
-                <el-menu-item index="/proxies/http" class="submenu-item">HTTP</el-menu-item>
-                <el-menu-item index="/proxies/https" class="submenu-item">HTTPS</el-menu-item>
-                <el-menu-item index="/proxies/tcpmux" class="submenu-item">TCPMUX</el-menu-item>
-                <el-menu-item index="/proxies/stcp" class="submenu-item">STCP</el-menu-item>
-                <el-menu-item index="/proxies/sudp" class="submenu-item">SUDP</el-menu-item>
+                <el-menu-item index="/proxies/tcp" class="submenu-item"
+                  >TCP</el-menu-item
+                >
+                <el-menu-item index="/proxies/udp" class="submenu-item"
+                  >UDP</el-menu-item
+                >
+                <el-menu-item index="/proxies/http" class="submenu-item"
+                  >HTTP</el-menu-item
+                >
+                <el-menu-item index="/proxies/https" class="submenu-item"
+                  >HTTPS</el-menu-item
+                >
+                <el-menu-item index="/proxies/tcpmux" class="submenu-item"
+                  >TCPMUX</el-menu-item
+                >
+                <el-menu-item index="/proxies/stcp" class="submenu-item"
+                  >STCP</el-menu-item
+                >
+                <el-menu-item index="/proxies/sudp" class="submenu-item"
+                  >SUDP</el-menu-item
+                >
               </el-sub-menu>
             </el-menu>
           </aside>
@@ -110,8 +148,13 @@
       </div>
     </main>
 
-    <!-- 遮罩层 - 移动端菜单打开时显示 -->
-    <transition name="fade">
+    <!-- 登录页的极简布局：不显示侧边栏，仅渲染路由内容 -->
+    <main v-else class="auth-main">
+      <router-view></router-view>
+    </main>
+
+    <!-- 遮罩层 - 移动端菜单打开时显示（登录页不显示） -->
+    <transition name="fade" v-if="$route.meta.layout !== 'auth'">
       <div
         v-show="isMobileMenuOpen"
         :class="['mobile-overlay', { 'mobile-menu-open': isMobileMenuOpen }]"
@@ -133,7 +176,9 @@ const isMobileMenuOpen = ref(false)
 
 const route = useRoute()
 const activeMenu = computed(() => route.path)
-const defaultOpeneds = computed(() => (route.path.startsWith('/proxies') ? ['/proxies'] : []))
+const defaultOpeneds = computed(() =>
+  route.path.startsWith('/proxies') ? ['/proxies'] : [],
+)
 
 const handleSelect = (key: string) => {
   if (key == '') {
@@ -190,7 +235,7 @@ html.dark .app-header {
   font-size: 28px;
   font-weight: bold;
   background: rgba(255, 255, 255, 0.2);
-  padding: 8px 16px;
+  padding: 5px 16px;
   border-radius: 8px;
   backdrop-filter: blur(10px);
 }
@@ -201,7 +246,6 @@ html.dark .app-header {
   display: inline;
 }
 
-
 .theme-switch {
   --el-switch-on-color: #4a5568;
   --el-switch-off-color: #3182ce;
@@ -211,6 +255,10 @@ html.dark .app-header {
 .app-main {
   flex: 1;
   padding: 16px 0;
+}
+
+.auth-main {
+  flex: 1;
 }
 
 .main-container {
@@ -226,7 +274,7 @@ html.dark .app-header {
 /* 侧边栏样式 */
 .sidebar-desktop {
   position: sticky;
-  top: 88px;
+  top: 80px;
   height: calc(100vh - 112px);
   overflow-y: auto;
 }
@@ -244,19 +292,56 @@ html.dark .sidebar-menu {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.menu-item, .menu-sub {
+.menu-item,
+.menu-sub {
   margin: 4px 12px;
   border-radius: 8px;
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.menu-item:hover, .menu-sub:hover {
+.menu-item.is-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.menu-item.is-active .menu-icon,
+.menu-item.is-active .menu-text {
+  color: white;
+}
+.menu-item.is-active:hover .menu-text {
+  color: #303133;
+}
+html.dark .menu-item.is-active:hover .menu-text {
+  color: white;
+}
+
+.menu-item:hover,
+.menu-sub:hover {
   background: #f7fafc;
 }
 
 html.dark .menu-item:hover,
 html.dark .menu-sub:hover {
   background: #4a5568;
+}
+
+html.dark .menu-item.is-active {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  color: white;
+}
+
+.submenu-item.is-active {
+  background: #ebf4ff;
+  color: #3182ce;
+  font-weight: 600;
+}
+
+html.dark .submenu-item.is-active {
+  background: rgba(99, 179, 237, 0.15);
+  color: #63b3ed;
+  box-shadow: inset 2px 0 0 #63b3ed;
+  font-weight: 500;
 }
 
 .menu-icon {
@@ -270,6 +355,7 @@ html.dark .menu-sub:hover {
 
 .submenu-item {
   padding-left: 48px !important;
+  height: 46px;
 }
 
 /* 内容区域 */
@@ -335,7 +421,7 @@ html.dark .sidebar-mobile {
 }
 
 .mobile-header {
-  padding: 20px;
+  padding: 10px 14px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
@@ -412,7 +498,6 @@ html.dark .mobile-header {
     padding: 4px 12px;
   }
 }
-
 
 @media (max-width: 768px) {
   .content-container {

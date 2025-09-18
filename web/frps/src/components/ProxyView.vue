@@ -1,9 +1,6 @@
 <template>
   <div>
-    <el-page-header
-      :icon="null"
-      style="margin-bottom: 10px"
-    >
+    <el-page-header :icon="null" style="margin-bottom: 10px">
       <template #title>
         <span>{{ proxyType }}</span>
       </template>
@@ -18,10 +15,18 @@
               <el-button>清理离线</el-button>
             </template>
           </el-popconfirm>
-          <el-button @click="$emit('refresh')">刷新</el-button>
+          <el-button :loading="loading" @click="$emit('refresh')"
+            >刷新</el-button
+          >
         </div>
       </template>
     </el-page-header>
+
+    <!-- 顶部粘性细进度条（自定义 NProgress 风格） -->
+    <div class="top-loading" :class="{ 'is-hidden': !loading }">
+      <div class="top-loading__bar"></div>
+      <div class="top-loading__peg"></div>
+    </div>
 
     <el-table
       :data="proxies"
@@ -33,9 +38,21 @@
           <ProxyViewExpand :row="props.row" :proxyType="proxyType" />
         </template>
       </el-table-column>
-      <el-table-column label="Name" prop="name" sortable min-width="130px"> </el-table-column>
-      <el-table-column label="Port" prop="port" sortable min-width="80px"> </el-table-column>
-      <el-table-column v-if="!isMdOrBelow" label="Connections" prop="conns" sortable>
+      <el-table-column label="名称" prop="name" sortable min-width="130px">
+      </el-table-column>
+      <el-table-column label="端口" prop="port" sortable min-width="80px">
+        <template #default="scope">
+          <el-link
+            v-if="
+              scope.row.status === 'online' && scope.row.name.includes('.web')
+            "
+            @click="openManage(scope.row)"
+          >
+            <span>{{ scope.row.port }}</span>
+          </el-link>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="!isMdOrBelow" label="连接数" prop="conns" sortable>
       </el-table-column>
       <!-- <el-table-column
         label="Traffic In"
@@ -51,20 +68,25 @@
         sortable
       >
       </el-table-column> -->
-      <el-table-column v-if="!isSmOrBelow" label="ClientVersion" prop="clientVersion" sortable min-width="130px">
+      <el-table-column
+        v-if="!isSmOrBelow"
+        label="客户端版本"
+        prop="clientVersion"
+        sortable
+        min-width="120px"
+      >
       </el-table-column>
-      <el-table-column label="Status" prop="status" sortable min-min-width="90px">
+      <el-table-column label="状态" prop="status" sortable min-min-width="90px">
         <template #default="scope">
-          <el-tag v-if="scope.row.status === 'online'" type="success">在线</el-tag>
+          <el-tag v-if="scope.row.status === 'online'" type="success"
+            >在线</el-tag
+          >
           <el-tag v-else type="danger">离线</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Operations" min-min-width="90px">
+      <el-table-column label="操作" min-min-width="90px">
         <template #default="scope">
-          <el-button
-            type="primary"
-            :name="scope.row.name"
-            @click="dialogVisibleName = scope.row.name; dialogVisible = true"
+          <el-button type="primary" @click="openTraffic(scope.row)"
             >流量
           </el-button>
         </template>
@@ -76,14 +98,15 @@
     v-model="dialogVisible"
     :destroy-on-close="true"
     :title="dialogVisibleName"
-    width="700px">
+    width="700px"
+  >
     <Traffic :proxyName="dialogVisibleName" />
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import * as Humanize from 'humanize-plus'
-import type { TableColumnCtx } from 'element-plus'
+// import * as Humanize from 'humanize-plus'
+// import type { TableColumnCtx } from 'element-plus'
 import type { BaseProxy } from '../utils/proxy.js'
 import { ElMessage } from 'element-plus'
 import ProxyViewExpand from './ProxyViewExpand.vue'
@@ -93,22 +116,34 @@ import { useBreakpoints } from '../utils/breakpoints'
 defineProps<{
   proxies: BaseProxy[]
   proxyType: string
+  loading?: boolean
 }>()
 
 const emit = defineEmits(['refresh'])
 
 const dialogVisible = ref(false)
-const dialogVisibleName = ref("")
+const dialogVisibleName = ref('')
 // 全局断点
 const { isSmOrBelow, isMdOrBelow } = useBreakpoints()
 
-const formatTrafficIn = (row: BaseProxy, _: TableColumnCtx<BaseProxy>) => {
-  return Humanize.fileSize(row.trafficIn)
+const openTraffic = (row: BaseProxy) => {
+  dialogVisibleName.value = row.name
+  dialogVisible.value = true
 }
 
-const formatTrafficOut = (row: BaseProxy, _: TableColumnCtx<BaseProxy>) => {
-  return Humanize.fileSize(row.trafficOut)
+const openManage = (row: BaseProxy) => {
+  const hostname = window.location.hostname
+  const target = `http://${hostname}:${row.port}`
+  window.open(target, '_blank')
 }
+
+// const formatTrafficIn = (row: BaseProxy, _: TableColumnCtx<BaseProxy>) => {
+//   return Humanize.fileSize(row.trafficIn)
+// }
+
+// const formatTrafficOut = (row: BaseProxy, _: TableColumnCtx<BaseProxy>) => {
+//   return Humanize.fileSize(row.trafficOut)
+// }
 
 const clearOfflineProxies = () => {
   fetch('../api/proxies?status=offline', {
@@ -124,7 +159,11 @@ const clearOfflineProxies = () => {
         emit('refresh')
       } else {
         ElMessage({
-          message: 'Failed to clear offline proxies: ' + res.status + ' ' + res.statusText,
+          message:
+            'Failed to clear offline proxies: ' +
+            res.status +
+            ' ' +
+            res.statusText,
           type: 'warning',
         })
       }
@@ -278,7 +317,6 @@ html.dark .traffic-dialog :deep(.el-dialog__title) {
   padding: 24px;
 }
 
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .page-header {
@@ -301,9 +339,12 @@ html.dark .traffic-dialog :deep(.el-dialog__title) {
     border-radius: 8px;
   }
 
+  .el-table :deep(.el-link__inner) {
+    font-size: 12px;
+  }
   .el-table :deep(.el-table__header) th,
   .el-table :deep(.el-table__row) td {
-    padding: 12px 8px;
+    padding: 10px 8px;
     font-size: 12px;
   }
 
@@ -384,5 +425,93 @@ html.dark .el-table .el-table__cell {
 
 .el-table .el-table__inner-wrapper::before {
   display: none;
+}
+
+/* 顶部加载条（NProgress 风格） */
+.top-loading {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  z-index: 20;
+  opacity: 1;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+.top-loading__bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 18%;
+  background: var(--el-color-primary);
+  border-radius: 999px;
+  animation: topLoadingSlide 1.8s ease-in-out infinite;
+}
+
+.top-loading__peg {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 30px;
+  box-shadow:
+    0 0 8px var(--el-color-primary),
+    0 0 2px var(--el-color-primary);
+  opacity: 0.6;
+  transform: rotate(3deg) translate(0, -1px);
+  /* 跟随进度条右端移动 */
+  left: -10%;
+  animation: topLoadingPegSlide 1.8s ease-in-out infinite;
+}
+
+@keyframes topLoadingSlide {
+  0% {
+    left: -10%;
+    width: 12%;
+  }
+  40% {
+    left: 30%;
+    width: 28%;
+  }
+  100% {
+    left: 100%;
+    width: 20%;
+  }
+}
+
+/* 使拖尾位置与进度条左边缘同步（尾巴跟随条的起点） */
+@keyframes topLoadingPegSlide {
+  0% {
+    left: -10%;
+  }
+  40% {
+    left: 30%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* 适配深色模式，沿用主色变量 */
+html.dark .top-loading__bar {
+  background: var(--el-color-primary);
+}
+
+html.dark .top-loading__peg {
+  box-shadow:
+    0 0 8px var(--el-color-primary),
+    0 0 2px var(--el-color-primary);
+}
+
+/* 隐藏态：淡出并暂停动画，避免闪烁和性能浪费 */
+.top-loading.is-hidden {
+  opacity: 0;
+}
+.top-loading.is-hidden .top-loading__bar,
+.top-loading.is-hidden .top-loading__peg {
+  /* 取消动画，显示时会重新赋予动画，从起点开始 */
+  animation: none;
 }
 </style>

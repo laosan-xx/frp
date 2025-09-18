@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import Login from '../views/Login.vue'
 import ServerOverview from '../components/ServerOverview.vue'
 import ProxiesTCP from '../components/ProxiesTCP.vue'
 import ProxiesUDP from '../components/ProxiesUDP.vue'
@@ -11,6 +12,12 @@ import ProxiesSUDP from '../components/ProxiesSUDP.vue'
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
+    {
+      path: '/login',
+      name: 'Login',
+      component: Login,
+      meta: { layout: 'auth', public: true },
+    },
     {
       path: '/',
       name: 'ServerOverview',
