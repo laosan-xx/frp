@@ -15,8 +15,8 @@
 package ssh
 
 import (
-	"github.com/fatedier/frp/client/proxy"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/client/proxy"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 func createSuccessInfo(user string, pc v1.ProxyConfigurer, ps *proxy.WorkingStatus) string {

@@ -182,7 +182,7 @@ const defaultOpeneds = computed(() =>
 
 const handleSelect = (key: string) => {
   if (key == '') {
-    window.open('https://github.com/fatedier/frp')
+    window.open('https://github.com/laosan-xx/frp')
   }
 }
 

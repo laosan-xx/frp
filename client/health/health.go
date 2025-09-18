@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/util/xlog"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
 )
 
 var ErrHealthCheckType = errors.New("error health check type")

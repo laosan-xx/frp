@@ -15,9 +15,9 @@
 package main
 
 import (
-	_ "github.com/fatedier/frp/assets/frps"
-	_ "github.com/fatedier/frp/pkg/metrics"
-	"github.com/fatedier/frp/pkg/util/system"
+	_ "github.com/laosan-xx/frp/assets/frps"
+	_ "github.com/laosan-xx/frp/pkg/metrics"
+	"github.com/laosan-xx/frp/pkg/util/system"
 )
 
 func main() {

@@ -20,8 +20,8 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/pkg/config/types"
-	"github.com/fatedier/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/config/types"
+	"github.com/laosan-xx/frp/pkg/util/util"
 )
 
 type ServerConfig struct {

@@ -1,15 +1,15 @@
 # frp
 
-[![Build Status](https://circleci.com/gh/fatedier/frp.svg?style=shield)](https://circleci.com/gh/fatedier/frp)
-[![GitHub release](https://img.shields.io/github/tag/fatedier/frp.svg?label=release)](https://github.com/fatedier/frp/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/fatedier/frp)](https://goreportcard.com/report/github.com/fatedier/frp)
-[![GitHub Releases Stats](https://img.shields.io/github/downloads/fatedier/frp/total.svg?logo=github)](https://somsubhra.github.io/github-release-stats/?username=fatedier&repository=frp)
+[![Build Status](https://circleci.com/gh/laosan-xx/frp.svg?style=shield)](https://circleci.com/gh/laosan-xx/frp)
+[![GitHub release](https://img.shields.io/github/tag/laosan-xx/frp.svg?label=release)](https://github.com/laosan-xx/frp/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/laosan-xx/frp)](https://goreportcard.com/report/github.com/laosan-xx/frp)
+[![GitHub Releases Stats](https://img.shields.io/github/downloads/laosan-xx/frp/total.svg?logo=github)](https://somsubhra.github.io/github-release-stats/?username=laosan-xx&repository=frp)
 
 [README](README.md) | [中文文档](README_zh.md)
 
 ## Sponsors
 
-frp is an open source project with its ongoing development made possible entirely by the support of our awesome sponsors. If you'd like to join them, please consider [sponsoring frp's development](https://github.com/sponsors/fatedier).
+frp is an open source project with its ongoing development made possible entirely by the support of our awesome sponsors. If you'd like to join them, please consider [sponsoring frp's development](https://github.com/sponsors/laosan-xx).
 
 <h3 align="center">Gold Sponsors</h3>
 <!--gold sponsors start-->
@@ -24,21 +24,21 @@ frp is an open source project with its ongoing development made possible entirel
 </p>
 <p align="center">
   <a href="https://jb.gg/frp" target="_blank">
-    <img width="420px" src="https://raw.githubusercontent.com/fatedier/frp/dev/doc/pic/sponsor_jetbrains.jpg">
+    <img width="420px" src="https://raw.githubusercontent.com/laosan-xx/frp/dev/doc/pic/sponsor_jetbrains.jpg">
 	<br>
 	<b>The complete IDE crafted for professional Go developers</b>
   </a>
 </p>
 <p align="center">
   <a href="https://github.com/daytonaio/daytona" target="_blank">
-    <img width="420px" src="https://raw.githubusercontent.com/fatedier/frp/dev/doc/pic/sponsor_daytona.png">
+    <img width="420px" src="https://raw.githubusercontent.com/laosan-xx/frp/dev/doc/pic/sponsor_daytona.png">
 	<br>
 	<b>Secure and Elastic Infrastructure for Running Your AI-Generated Code</b>
   </a>
 </p>
 <p align="center">
   <a href="https://github.com/beclab/Olares" target="_blank">
-    <img width="420px" src="https://raw.githubusercontent.com/fatedier/frp/dev/doc/pic/sponsor_olares.jpeg">
+    <img width="420px" src="https://raw.githubusercontent.com/laosan-xx/frp/dev/doc/pic/sponsor_olares.jpeg">
 	<br>
 	<b>The sovereign cloud that puts you in control</b>
 	<br>
@@ -148,13 +148,13 @@ We sincerely appreciate your support for frp.
 
 ## Example Usage
 
-To begin, download the latest program for your operating system and architecture from the [Release](https://github.com/fatedier/frp/releases) page.
+To begin, download the latest program for your operating system and architecture from the [Release](https://github.com/laosan-xx/frp/releases) page.
 
 Next, place the `frps` binary and server configuration file on Server A, which has a public IP address.
 
 Finally, place the `frpc` binary and client configuration file on Server B, which is located on a LAN that cannot be directly accessed from the public internet.
 
-Some antiviruses improperly mark frpc as malware and delete it. This is due to frp being a networking tool capable of creating reverse proxies. Antiviruses sometimes flag reverse proxies due to their ability to bypass firewall port restrictions. If you are using antivirus, then you may need to whitelist/exclude frpc in your antivirus settings to avoid accidental quarantine/deletion. See [issue 3637](https://github.com/fatedier/frp/issues/3637) for more details.
+Some antiviruses improperly mark frpc as malware and delete it. This is due to frp being a networking tool capable of creating reverse proxies. Antiviruses sometimes flag reverse proxies due to their ability to bypass firewall port restrictions. If you are using antivirus, then you may need to whitelist/exclude frpc in your antivirus settings to avoid accidental quarantine/deletion. See [issue 3637](https://github.com/laosan-xx/frp/issues/3637) for more details.
 
 ### Access your computer in a LAN network via SSH
 
@@ -1334,12 +1334,12 @@ Features typically go through three stages:
 
 Interested in getting involved? We would like to help you!
 
-* Take a look at our [issues list](https://github.com/fatedier/frp/issues) and consider sending a Pull Request to **dev branch**.
+* Take a look at our [issues list](https://github.com/laosan-xx/frp/issues) and consider sending a Pull Request to **dev branch**.
 * If you want to add a new feature, please create an issue first to describe the new feature, as well as the implementation approach. Once a proposal is accepted, create an implementation of the new features and submit it as a pull request.
 * Sorry for my poor English. Improvements for this document are welcome, even some typo fixes.
-* If you have great ideas, send an email to fatedier@gmail.com.
+* If you have great ideas, send an email to laosan-xx@gmail.com.
 
-**Note: We prefer you to give your advise in [issues](https://github.com/fatedier/frp/issues), so others with a same question can search it quickly and we don't need to answer them repeatedly.**
+**Note: We prefer you to give your advise in [issues](https://github.com/laosan-xx/frp/issues), so others with a same question can search it quickly and we don't need to answer them repeatedly.**
 
 ## Donation
 
@@ -1347,10 +1347,10 @@ If frp helps you a lot, you can support us by:
 
 ### GitHub Sponsors
 
-Support us by [Github Sponsors](https://github.com/sponsors/fatedier).
+Support us by [Github Sponsors](https://github.com/sponsors/laosan-xx).
 
 You can have your company's logo placed on README file of this project.
 
 ### PayPal
 
-Donate money by [PayPal](https://www.paypal.me/fatedier) to my account **fatedier@gmail.com**.
+Donate money by [PayPal](https://www.paypal.me/laosan-xx) to my account **laosan-xx@gmail.com**.
