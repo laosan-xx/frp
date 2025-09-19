@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 interface LoginForm {
   username: string

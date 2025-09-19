@@ -21,7 +21,6 @@ declare module 'vue' {
     ElMenuItem: typeof import('element-plus/es')['ElMenuItem']
     ElPageHeader: typeof import('element-plus/es')['ElPageHeader']
     ElPopconfirm: typeof import('element-plus/es')['ElPopconfirm']
-    ElProgress: typeof import('element-plus/es')['ElProgress']
     ElRow: typeof import('element-plus/es')['ElRow']
     ElSubMenu: typeof import('element-plus/es')['ElSubMenu']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
@@ -44,8 +43,5 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     ServerOverview: typeof import('./src/components/ServerOverview.vue')['default']
     Traffic: typeof import('./src/components/Traffic.vue')['default']
-  }
-  export interface ComponentCustomProperties {
-    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }

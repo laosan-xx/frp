@@ -181,7 +181,7 @@ let data = ref({
 })
 
 // 全局断点
-const { isSmOrBelow, isMdAndUp } = useBreakpoints()
+const { isSmOrBelow } = useBreakpoints()
 
 const fetchData = () => {
   fetch('../api/serverinfo', { credentials: 'include' })

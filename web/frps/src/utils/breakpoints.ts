@@ -81,11 +81,9 @@ function refComputedMdOrBelow() {
   // 初始化一次
   r.value = !sharedIsMdAndUp.value
   // 订阅 mdUp 变化
-  const stop = watchEffect(() => {
+  watchEffect(() => {
     r.value = !sharedIsMdAndUp.value
   })
   // 这里不返回 stop，由调用方统一通过 useBreakpoints 的 onBeforeUnmount 回收监听器
   return r
 }
-
-
