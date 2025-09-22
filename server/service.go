@@ -169,12 +169,12 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 		cfg:               cfg,
 		ctx:               context.Background(),
 	}
-    if webServer != nil {
-        webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
-            svr.sessionMgr = helper.SessionManager
-            svr.registerRouteHandlers(helper)
-        })
-    }
+	if webServer != nil {
+		webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
+			svr.sessionMgr = helper.SessionManager
+			svr.registerRouteHandlers(helper)
+		})
+	}
 
 	// Create tcpmux httpconnect multiplexer.
 	if cfg.TCPMuxHTTPConnectPort > 0 {
