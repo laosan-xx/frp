@@ -237,7 +237,7 @@ const fetchData = () => {
     .catch(() => {
       ElMessage({
         showClose: true,
-        message: 'Get server info from frps failed!',
+        message: '从 frps 获取服务器信息失败！',
         type: 'warning',
       })
     })

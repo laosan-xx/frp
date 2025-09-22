@@ -79,33 +79,33 @@ type WebServerConfig struct {
 	// Enable TLS if TLSConfig is not nil.
 	TLS *TLSConfig `json:"tls,omitempty"`
 
-    // EnableBasicAuth keeps legacy Basic Auth protection for dashboard.
-    // Default is false.
-    EnableBasicAuth bool `json:"enableBasicAuth,omitempty"`
-    // SessionSecret is the secret for signing session cookies. If empty, a
-    // random secret will be generated at runtime (not persisted).
-    SessionSecret string `json:"sessionSecret,omitempty"`
-    // SessionCookieName is the cookie name for dashboard session.
-    SessionCookieName string `json:"sessionCookieName,omitempty"`
-    // SessionTTLDays defines session lifetime in days. Default 30.
-    SessionTTLDays int `json:"sessionTtlDays,omitempty"`
-    // SessionSameSite sets SameSite mode: "Lax" (default), "Strict", "None".
-    SessionSameSite string `json:"sessionSameSite,omitempty"`
-    // SessionSecure marks cookie Secure flag. Default false.
-    SessionSecure bool `json:"sessionSecure,omitempty"`
+	// EnableBasicAuth keeps legacy Basic Auth protection for dashboard.
+	// Default is false.
+	EnableBasicAuth bool `json:"enableBasicAuth,omitempty"`
+	// SessionSecret is the secret for signing session cookies. If empty, a
+	// random secret will be generated at runtime (not persisted).
+	SessionSecret string `json:"sessionSecret,omitempty"`
+	// SessionCookieName is the cookie name for dashboard session.
+	SessionCookieName string `json:"sessionCookieName,omitempty"`
+	// SessionTTLDays defines session lifetime in days. Default 30.
+	SessionTTLDays int `json:"sessionTtlDays,omitempty"`
+	// SessionSameSite sets SameSite mode: "Lax" (default), "Strict", "None".
+	SessionSameSite string `json:"sessionSameSite,omitempty"`
+	// SessionSecure marks cookie Secure flag. Default false.
+	SessionSecure bool `json:"sessionSecure,omitempty"`
 }
 
 func (c *WebServerConfig) Complete() {
 	c.Addr = util.EmptyOr(c.Addr, "127.0.0.1")
-    if c.SessionCookieName == "" {
-        c.SessionCookieName = "frps_session"
-    }
-    if c.SessionTTLDays == 0 {
-        c.SessionTTLDays = 30
-    }
-    if c.SessionSameSite == "" {
-        c.SessionSameSite = "Lax"
-    }
+	if c.SessionCookieName == "" {
+		c.SessionCookieName = "frps_session"
+	}
+	if c.SessionTTLDays == 0 {
+		c.SessionTTLDays = 30
+	}
+	if c.SessionSameSite == "" {
+		c.SessionSameSite = "Lax"
+	}
 }
 
 type TLSConfig struct {

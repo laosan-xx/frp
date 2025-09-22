@@ -17,6 +17,8 @@ package server
 import (
 	"cmp"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"slices"
 
@@ -410,49 +412,49 @@ func (svr *Service) deleteProxies(w http.ResponseWriter, r *http.Request) {
 }
 
 type loginReq struct {
-    Username   string `json:"username"`
-    Password   string `json:"password"`
-    CaptchaID  string `json:"captchaId"`
-    CaptchaAns string `json:"captchaAns"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	CaptchaID  string `json:"captchaId"`
+	CaptchaAns string `json:"captchaAns"`
 }
 
 var captchaStore = struct{ m map[string]string }{m: map[string]string{}}
 
 func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
-    var req loginReq
-    _ = json.NewDecoder(r.Body).Decode(&req)
-    if req.CaptchaID != "" {
-        if ans, ok := captchaStore.m[req.CaptchaID]; !ok || ans != req.CaptchaAns {
-            http.Error(w, "invalid captcha", http.StatusUnauthorized)
-            return
-        }
-    }
-    if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
-    } else if !(req.Username == svr.cfg.WebServer.User && req.Password == svr.cfg.WebServer.Password) {
-        http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-        return
-    }
-    if svr.sessionMgr != nil {
-        _ = svr.sessionMgr.Issue(w, req.Username)
-    }
-    w.WriteHeader(http.StatusOK)
+	var req loginReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.CaptchaID != "" {
+		if ans, ok := captchaStore.m[req.CaptchaID]; !ok || ans != req.CaptchaAns {
+			http.Error(w, "invalid captcha", http.StatusUnauthorized)
+			return
+		}
+	}
+	if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
+	} else if !(req.Username == svr.cfg.WebServer.User && req.Password == svr.cfg.WebServer.Password) {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+	if svr.sessionMgr != nil {
+		_ = svr.sessionMgr.Issue(w, req.Username)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (svr *Service) apiLogout(w http.ResponseWriter, _ *http.Request) {
-    if svr.sessionMgr != nil {
-        svr.sessionMgr.Clear(w)
-    }
-    w.WriteHeader(http.StatusOK)
+	if svr.sessionMgr != nil {
+		svr.sessionMgr.Clear(w)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
-    id, _ := util.RandID()
-    code, _ := util.RandID()
-    if len(code) > 5 { code = code[:5] }
-    captchaStore.m[id] = code
-    svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\"><rect width=\"120\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"15\" y=\"26\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
-    resp := map[string]string{"id": id, "svg": svg}
-    buf, _ := json.Marshal(resp)
-    w.Header().Set("Content-Type", "application/json")
-    _, _ = w.Write(buf)
+	id, _ := util.RandID()
+	// 生成4位数字验证码
+	code := fmt.Sprintf("%04d", rand.Intn(10000))
+	captchaStore.m[id] = code
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\"><rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"10\" y=\"26\" font-size=\"18\" fill=\"#333\">" + code + "</text></svg>"
+	resp := map[string]string{"id": id, "svg": svg}
+	buf, _ := json.Marshal(resp)
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(buf)
 }

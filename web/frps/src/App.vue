@@ -18,6 +18,16 @@
             @change="toggleDark"
             class="theme-switch"
           />
+          <el-button
+            type="danger"
+            plain
+            size="small"
+            @click="handleLogout"
+            class="logout-btn"
+            circle
+          >
+            <span class="logout-icon">⏻</span>
+          </el-button>
         </div>
       </div>
     </header>
@@ -167,7 +177,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDark, useToggle } from '@vueuse/core'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const isDark = useDark()
 const darkmodeSwitch = ref(isDark)
@@ -175,6 +186,7 @@ const toggleDark = useToggle(isDark)
 const isMobileMenuOpen = ref(false)
 
 const route = useRoute()
+const router = useRouter()
 const activeMenu = computed(() => route.path)
 const defaultOpeneds = computed(() =>
   route.path.startsWith('/proxies') ? ['/proxies'] : [],
@@ -189,6 +201,43 @@ const handleSelect = (key: string) => {
 const handleMobileSelect = (key: string) => {
   handleSelect(key)
   isMobileMenuOpen.value = false
+}
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要登出吗？',
+      '确认登出',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customStyle: {
+          marginTop: '-10vh',
+        },
+      }
+    )
+    
+    // 调用登出 API
+    const response = await fetch('/api/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (response.ok) {
+      ElMessage.success('登出成功')
+      // 跳转到登录页
+      router.push('/login')
+    } else {
+      ElMessage.error('登出失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('登出时发生错误')
+    }
+  }
 }
 </script>
 
@@ -218,7 +267,7 @@ html.dark .app-header {
   align-items: center;
   justify-content: space-between;
   height: 64px;
-  padding: 0 24px;
+  padding: 0 20px;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -249,6 +298,23 @@ html.dark .app-header {
 .theme-switch {
   --el-switch-on-color: #4a5568;
   --el-switch-off-color: #3182ce;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-btn {
+  margin-left: 4px;
+  height: 20px;
+  width: 20px;
+}
+
+.logout-icon {
+  margin-right: 0;
+  margin-top: -2px;
 }
 
 /* 主内容区域 */

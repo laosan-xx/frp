@@ -7,17 +7,18 @@
       <template #content> </template>
       <template #extra>
         <div class="flex items-center">
+          <el-button :loading="loading" @click="$emit('refresh')"
+            >刷新</el-button
+          >
           <el-popconfirm
-            title="Are you sure to clear all data of offline proxies?"
+            title="你确定要清除离线代理的所有数据吗？"
             @confirm="clearOfflineProxies"
+            width="300"
           >
             <template #reference>
               <el-button>清理离线</el-button>
             </template>
           </el-popconfirm>
-          <el-button :loading="loading" @click="$emit('refresh')"
-            >刷新</el-button
-          >
         </div>
       </template>
     </el-page-header>
@@ -153,14 +154,14 @@ const clearOfflineProxies = () => {
     .then((res) => {
       if (res.ok) {
         ElMessage({
-          message: 'Successfully cleared offline proxies',
+          message: '已成功清除离线代理',
           type: 'success',
         })
         emit('refresh')
       } else {
         ElMessage({
           message:
-            'Failed to clear offline proxies: ' +
+            '清除离线代理失败：' +
             res.status +
             ' ' +
             res.statusText,
@@ -170,7 +171,7 @@ const clearOfflineProxies = () => {
     })
     .catch((err) => {
       ElMessage({
-        message: 'Failed to clear offline proxies: ' + err.message,
+        message: '清除离线代理失败：' + err.message,
         type: 'warning',
       })
     })
