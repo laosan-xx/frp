@@ -124,6 +124,9 @@ type Service struct {
 	ctx context.Context
 	// call cancel to stop service
 	cancel context.CancelFunc
+
+	// dashboard session manager
+	sessionMgr *netpkg.SessionManager
 }
 
 func NewService(cfg *v1.ServerConfig) (*Service, error) {
@@ -166,9 +169,12 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 		cfg:               cfg,
 		ctx:               context.Background(),
 	}
-	if webServer != nil {
-		webServer.RouteRegister(svr.registerRouteHandlers)
-	}
+    if webServer != nil {
+        webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
+            svr.sessionMgr = helper.SessionManager
+            svr.registerRouteHandlers(helper)
+        })
+    }
 
 	// Create tcpmux httpconnect multiplexer.
 	if cfg.TCPMuxHTTPConnectPort > 0 {

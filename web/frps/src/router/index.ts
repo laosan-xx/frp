@@ -18,6 +18,7 @@ const router = createRouter({
       component: Login,
       meta: { layout: 'auth', public: true },
     },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
     {
       path: '/',
       name: 'ServerOverview',

@@ -38,6 +38,9 @@ type GeneralResponse struct {
 }
 
 func (svr *Service) registerRouteHandlers(helper *httppkg.RouterRegisterHelper) {
+	helper.Router.HandleFunc("/api/login", svr.apiLogin).Methods("POST")
+	helper.Router.HandleFunc("/api/logout", svr.apiLogout).Methods("POST")
+	helper.Router.HandleFunc("/api/captcha", svr.apiCaptcha).Methods("GET")
 	helper.Router.HandleFunc("/healthz", svr.healthz)
 	subRouter := helper.Router.NewRoute().Subrouter()
 
@@ -403,4 +406,52 @@ func (svr *Service) deleteProxies(w http.ResponseWriter, r *http.Request) {
 	}
 	cleared, total := mem.StatsCollector.ClearOfflineProxies()
 	log.Infof("cleared [%d] offline proxies, total [%d] proxies", cleared, total)
+}
+
+type loginReq struct {
+    Username   string `json:"username"`
+    Password   string `json:"password"`
+    CaptchaID  string `json:"captchaId"`
+    CaptchaAns string `json:"captchaAns"`
+}
+
+var captchaStore = struct{ m map[string]string }{m: map[string]string{}}
+
+func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
+    var req loginReq
+    _ = json.NewDecoder(r.Body).Decode(&req)
+    if req.CaptchaID != "" {
+        if ans, ok := captchaStore.m[req.CaptchaID]; !ok || ans != req.CaptchaAns {
+            http.Error(w, "invalid captcha", http.StatusUnauthorized)
+            return
+        }
+    }
+    if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
+    } else if !(req.Username == svr.cfg.WebServer.User && req.Password == svr.cfg.WebServer.Password) {
+        http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+        return
+    }
+    if svr.sessionMgr != nil {
+        _ = svr.sessionMgr.Issue(w, req.Username)
+    }
+    w.WriteHeader(http.StatusOK)
+}
+
+func (svr *Service) apiLogout(w http.ResponseWriter, _ *http.Request) {
+    if svr.sessionMgr != nil {
+        svr.sessionMgr.Clear(w)
+    }
+    w.WriteHeader(http.StatusOK)
+}
+
+func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
+    id, _ := util.RandID()
+    code, _ := util.RandID()
+    if len(code) > 5 { code = code[:5] }
+    captchaStore.m[id] = code
+    svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"40\"><rect width=\"120\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"15\" y=\"26\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
+    resp := map[string]string{"id": id, "svg": svg}
+    buf, _ := json.Marshal(resp)
+    w.Header().Set("Content-Type", "application/json")
+    _, _ = w.Write(buf)
 }

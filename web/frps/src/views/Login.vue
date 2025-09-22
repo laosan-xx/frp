@@ -30,6 +30,19 @@
             size="large"
           />
         </el-form-item>
+        <el-form-item label="验证码" prop="captchaAns">
+          <div class="captcha-row">
+            <el-input
+              v-model="form.captchaAns"
+              placeholder="请输入右侧验证码"
+              clearable
+              size="large"
+              class="captcha-input"
+            />
+            <div class="captcha-box" v-html="captchaSvg"></div>
+            <el-button link type="primary" @click="refreshCaptcha">换一张</el-button>
+          </div>
+        </el-form-item>
         <el-button
           type="primary"
           :loading="loading"
@@ -47,24 +60,40 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 interface LoginForm {
   username: string
   password: string
+  captchaId?: string
+  captchaAns?: string
 }
 
 const router = useRouter()
 const route = useRoute()
 const formRef = ref()
 const loading = ref(false)
-const form = reactive<LoginForm>({ username: '', password: '' })
+const form = reactive<LoginForm>({ username: '', password: '', captchaId: '', captchaAns: '' })
+const captchaSvg = ref('')
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  captchaAns: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+}
+
+const refreshCaptcha = async () => {
+  try {
+    const resp = await fetch('/api/captcha')
+    if (!resp.ok) throw new Error('captcha failed')
+    const data = await resp.json()
+    form.captchaId = data.id
+    captchaSvg.value = data.svg
+  } catch {
+    captchaSvg.value = ''
+  }
 }
 
 const onSubmit = async () => {
@@ -73,25 +102,33 @@ const onSubmit = async () => {
     if (!valid) return
     try {
       loading.value = true
-      // 调用后端登录接口，示例使用 fetch，请按需替换 URL
       const resp = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          username: form.username,
+          password: form.password,
+          captchaId: form.captchaId,
+          captchaAns: form.captchaAns,
+        }),
       })
       if (!resp.ok) {
         throw new Error('登录失败')
       }
-      // 这里假设后端设置了 cookie 或返回 token；项目无需复杂状态
       const redirect = (route.query.redirect as string) || '/'
       router.replace(redirect)
     } catch (e) {
-      ElMessage.error('用户名或密码错误')
+      ElMessage.error('用户名、密码或验证码错误')
+      await refreshCaptcha()
     } finally {
       loading.value = false
     }
   })
 }
+
+onMounted(() => {
+  refreshCaptcha()
+})
 </script>
 
 <style scoped>
@@ -177,14 +214,25 @@ html.dark .title {
   margin-top: 4px;
 }
 
-.footer {
-  margin-top: 14px;
-  text-align: center;
-  font-size: 12px;
-  color: #a0aec0;
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-html.dark .footer {
-  color: #cbd5e0;
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-box {
+  width: 120px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
 }
 </style>
