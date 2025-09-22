@@ -29,6 +29,7 @@ import (
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/util"
 	"github.com/laosan-xx/frp/pkg/util/version"
 )
 
