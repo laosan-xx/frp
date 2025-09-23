@@ -452,7 +452,7 @@ func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
 	// 生成4位数字验证码
 	code := fmt.Sprintf("%04d", rand.Intn(10000))
 	captchaStore.m[id] = code
-	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\"><rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"10\" y=\"26\" font-size=\"18\" fill=\"#333\">" + code + "</text></svg>"
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\"><rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"10\" y=\"26\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
 	resp := map[string]string{"id": id, "svg": svg}
 	buf, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "application/json")

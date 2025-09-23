@@ -39,8 +39,7 @@
               size="large"
               class="captcha-input"
             />
-            <div class="captcha-box" v-html="captchaSvg"></div>
-            <el-button link type="primary" @click="refreshCaptcha">换一张</el-button>
+            <div class="captcha-box" v-html="captchaSvg" @click="refreshCaptcha"></div>
           </div>
         </el-form-item>
         <el-button
@@ -218,6 +217,7 @@ html.dark .title {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .captcha-input {
@@ -225,7 +225,7 @@ html.dark .title {
 }
 
 .captcha-box {
-  width: 120px;
+  width: 80px;
   height: 40px;
   border-radius: 6px;
   overflow: hidden;
