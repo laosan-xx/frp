@@ -22,12 +22,40 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/laosan-xx/frp/pkg/util/util"
 )
+
+// isStaticFileRequest 检查是否为静态文件请求
+func isStaticFileRequest(path string) bool {
+	// 允许的静态文件路径
+	staticPaths := []string{
+		"/static/",
+		"/favicon.ico",
+		"/", // 根路径重定向到 /static/
+	}
+	
+	for _, staticPath := range staticPaths {
+		if path == staticPath || strings.HasPrefix(path, staticPath) {
+			return true
+		}
+	}
+	
+	// 检查文件扩展名
+	ext := strings.ToLower(filepath.Ext(path))
+	staticExts := []string{".html", ".css", ".js", ".ico", ".png", ".jpg", ".gif", ".svg", ".woff", ".woff2", ".ttf", ".eot"}
+	for _, staticExt := range staticExts {
+		if ext == staticExt {
+			return true
+		}
+	}
+	
+	return false
+}
 
 type HTTPAuthMiddleware struct {
 	user          string
@@ -49,6 +77,12 @@ func (authMid *HTTPAuthMiddleware) SetAuthFailDelay(delay time.Duration) *HTTPAu
 
 func (authMid *HTTPAuthMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 检查是否为静态文件路径，如果是则直接放行
+		if isStaticFileRequest(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
 		reqUser, reqPasswd, hasAuth := r.BasicAuth()
 		if (authMid.user == "" && authMid.passwd == "") ||
 			(hasAuth && util.ConstantTimeEqString(reqUser, authMid.user) &&
@@ -123,6 +157,12 @@ func (sm *SessionManager) decode(token string) (sessionPayload, bool) {
 
 func (sm *SessionManager) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 检查是否为静态文件路径，如果是则直接放行
+		if isStaticFileRequest(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		
 		c, err := r.Cookie(sm.cookieName)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
