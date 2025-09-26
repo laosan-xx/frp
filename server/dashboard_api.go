@@ -429,11 +429,19 @@ func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	
+	// 安全检查：如果未设置用户名和密码，拒绝登录
 	if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
-	} else if !(req.Username == svr.cfg.WebServer.User && req.Password == svr.cfg.WebServer.Password) {
+		http.Error(w, "authentication not configured", http.StatusUnauthorized)
+		return
+	}
+	
+	// 验证用户名和密码
+	if !(req.Username == svr.cfg.WebServer.User && req.Password == svr.cfg.WebServer.Password) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
+	
 	if svr.sessionMgr != nil {
 		_ = svr.sessionMgr.Issue(w, req.Username)
 	}
