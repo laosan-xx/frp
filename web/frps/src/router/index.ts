@@ -18,12 +18,12 @@ const router = createRouter({
       component: Login,
       meta: { layout: 'auth', public: true },
     },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
     {
       path: '/',
       name: 'ServerOverview',
       component: ServerOverview,
     },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
     {
       path: '/proxies/tcp',
       name: 'ProxiesTCP',
@@ -60,6 +60,33 @@ const router = createRouter({
       component: ProxiesSUDP,
     },
   ],
+})
+
+// 添加路由守卫，检查认证状态
+router.beforeEach(async (to, _, next) => {
+  // 如果是公开路由（如登录页），直接放行
+  if (to.meta.public) {
+    next()
+    return
+  }
+
+  // 检查是否已登录
+  try {
+    const response = await fetch('/api/serverinfo')
+    if (response.ok) {
+      // 已登录，允许访问
+      next()
+    } else if (response.status === 401) {
+      // 未登录，重定向到登录页
+      next({ path: '/login', query: { redirect: to.fullPath } })
+    } else {
+      // 其他错误，也重定向到登录页
+      next({ path: '/login', query: { redirect: to.fullPath } })
+    }
+  } catch (error) {
+    // 网络错误，重定向到登录页
+    next({ path: '/login', query: { redirect: to.fullPath } })
+  }
 })
 
 export default router

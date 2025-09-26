@@ -36,7 +36,6 @@ func isStaticFileRequest(path string) bool {
 	staticPaths := []string{
 		"/static/",
 		"/favicon.ico",
-		"/", // 根路径重定向到 /static/
 	}
 	
 	for _, staticPath := range staticPaths {
