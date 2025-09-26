@@ -82,10 +82,19 @@ func (authMid *HTTPAuthMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 		
+		// 安全检查：如果未设置用户名和密码，拒绝访问
+		if authMid.user == "" && authMid.passwd == "" {
+			if authMid.authFailDelay > 0 {
+				time.Sleep(authMid.authFailDelay)
+			}
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "authentication not configured", http.StatusUnauthorized)
+			return
+		}
+		
 		reqUser, reqPasswd, hasAuth := r.BasicAuth()
-		if (authMid.user == "" && authMid.passwd == "") ||
-			(hasAuth && util.ConstantTimeEqString(reqUser, authMid.user) &&
-				util.ConstantTimeEqString(reqPasswd, authMid.passwd)) {
+		if hasAuth && util.ConstantTimeEqString(reqUser, authMid.user) &&
+			util.ConstantTimeEqString(reqPasswd, authMid.passwd) {
 			next.ServeHTTP(w, r)
 		} else {
 			if authMid.authFailDelay > 0 {
