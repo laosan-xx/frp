@@ -41,34 +41,51 @@ type GeneralResponse struct {
 }
 
 func (svr *Service) registerRouteHandlers(helper *httppkg.RouterRegisterHelper) {
+	// 公开接口（无需认证）
 	helper.Router.HandleFunc("/api/login", svr.apiLogin).Methods("POST")
 	helper.Router.HandleFunc("/api/logout", svr.apiLogout).Methods("POST")
 	helper.Router.HandleFunc("/api/captcha", svr.apiCaptcha).Methods("GET")
 	helper.Router.HandleFunc("/healthz", svr.healthz)
-	subRouter := helper.Router.NewRoute().Subrouter()
 
-	subRouter.Use(helper.AuthMiddleware.Middleware)
+	// 受保护的接口（需要认证）- 使用中间件包装每个处理器
+	authMiddleware := helper.AuthMiddleware.Middleware
 
 	// metrics
 	if svr.cfg.EnablePrometheus {
-		subRouter.Handle("/metrics", promhttp.Handler())
+		helper.Router.Handle("/metrics", authMiddleware(promhttp.Handler()))
 	}
 
-	// apis
-	subRouter.HandleFunc("/api/serverinfo", svr.apiServerInfo).Methods("GET")
-	subRouter.HandleFunc("/api/proxy/{type}", svr.apiProxyByType).Methods("GET")
-	subRouter.HandleFunc("/api/proxy/{type}/{name}", svr.apiProxyByTypeAndName).Methods("GET")
-	subRouter.HandleFunc("/api/traffic/{name}", svr.apiProxyTraffic).Methods("GET")
-	subRouter.HandleFunc("/api/proxies", svr.deleteProxies).Methods("DELETE")
+	// apis - 每个都需要认证
+	helper.Router.HandleFunc("/api/serverinfo", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiServerInfo)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxy/{type}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyByType)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxy/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyByTypeAndName)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/traffic/{name}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyTraffic)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxies", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.deleteProxies)).ServeHTTP(w, r)
+	}).Methods("DELETE")
 
-	// view
-	subRouter.Handle("/favicon.ico", http.FileServer(helper.AssetsFS)).Methods("GET")
-	subRouter.PathPrefix("/static/").Handler(
-		netpkg.MakeHTTPGzipHandler(http.StripPrefix("/static/", http.FileServer(helper.AssetsFS))),
+	// view - 静态文件和根路径需要认证
+	helper.Router.Handle("/favicon.ico", authMiddleware(http.FileServer(helper.AssetsFS))).Methods("GET")
+	helper.Router.PathPrefix("/static/").Handler(
+		authMiddleware(netpkg.MakeHTTPGzipHandler(http.StripPrefix("/static/", http.FileServer(helper.AssetsFS)))),
 	).Methods("GET")
 
-	subRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/static/", http.StatusMovedPermanently)
+	helper.Router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/static/", http.StatusMovedPermanently)
+		})).ServeHTTP(w, r)
 	})
 }
 
