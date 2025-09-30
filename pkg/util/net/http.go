@@ -37,13 +37,13 @@ func isStaticFileRequest(path string) bool {
 		"/static/",
 		"/favicon.ico",
 	}
-	
+
 	for _, staticPath := range staticPaths {
 		if path == staticPath || strings.HasPrefix(path, staticPath) {
 			return true
 		}
 	}
-	
+
 	// 检查文件扩展名
 	ext := strings.ToLower(filepath.Ext(path))
 	staticExts := []string{".html", ".css", ".js", ".ico", ".png", ".jpg", ".gif", ".svg", ".woff", ".woff2", ".ttf", ".eot"}

@@ -61,19 +61,19 @@ func (svr *Service) registerRouteHandlers(helper *httppkg.RouterRegisterHelper) 
 	helper.Router.HandleFunc("/api/serverinfo", func(w http.ResponseWriter, r *http.Request) {
 		authMiddleware(http.HandlerFunc(svr.apiServerInfo)).ServeHTTP(w, r)
 	}).Methods("GET")
-	
+
 	helper.Router.HandleFunc("/api/proxy/{type}", func(w http.ResponseWriter, r *http.Request) {
 		authMiddleware(http.HandlerFunc(svr.apiProxyByType)).ServeHTTP(w, r)
 	}).Methods("GET")
-	
+
 	helper.Router.HandleFunc("/api/proxy/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
 		authMiddleware(http.HandlerFunc(svr.apiProxyByTypeAndName)).ServeHTTP(w, r)
 	}).Methods("GET")
-	
+
 	helper.Router.HandleFunc("/api/traffic/{name}", func(w http.ResponseWriter, r *http.Request) {
 		authMiddleware(http.HandlerFunc(svr.apiProxyTraffic)).ServeHTTP(w, r)
 	}).Methods("GET")
-	
+
 	helper.Router.HandleFunc("/api/proxies", func(w http.ResponseWriter, r *http.Request) {
 		authMiddleware(http.HandlerFunc(svr.deleteProxies)).ServeHTTP(w, r)
 	}).Methods("DELETE")
@@ -455,7 +455,7 @@ func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
 		// 验证成功后删除验证码，防止重复使用
 		delete(captchaStore.m, req.CaptchaID)
 	}
-	
+
 	// 安全检查：如果未设置用户名和密码，拒绝登录
 	if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
 		http.Error(w, "authentication not configured", http.StatusUnauthorized)
@@ -464,7 +464,7 @@ func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
 	
 	// 验证用户名和密码（使用 SHA256 比较）
 	expectedPasswordHash := sha256Hash(svr.cfg.WebServer.Password)
-	if !(req.Username == svr.cfg.WebServer.User && req.Password == expectedPasswordHash) {
+	if req.Username != svr.cfg.WebServer.User || req.Password != expectedPasswordHash {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -488,7 +488,9 @@ func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
 	code := fmt.Sprintf("%04d", rand.Intn(10000))
 	captchaStore.m[id] = code
 	log.Infof("生成验证码: id=%s, code=%s", id, code)
-	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\"><rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"18\" y=\"27\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\">" +
+		"<rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/>" +
+		"<text x=\"18\" y=\"27\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
 	resp := map[string]string{"id": id, "svg": svg}
 	buf, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "application/json")
