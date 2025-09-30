@@ -23,10 +23,10 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/transport"
-	"github.com/fatedier/frp/pkg/util/log"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/transport"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )
 
 type Gateway struct {

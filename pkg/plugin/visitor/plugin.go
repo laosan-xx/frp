@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"net"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/vnet"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 type PluginContext struct {

@@ -1,0 +1,6 @@
+go build -o bin/frps.exe ./cmd/frps && taskkill //F //IM frps.exe
+
+./bin/frps.exe -c conf/frps.toml
+
+cd web/frps
+npm run dev

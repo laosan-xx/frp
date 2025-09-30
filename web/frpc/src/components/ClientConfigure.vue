@@ -30,7 +30,7 @@ const fetchData = () => {
     .catch(() => {
       ElMessage({
         showClose: true,
-        message: 'Get configure content from frpc failed!',
+        message: '从frpc获取配置内容失败！',
         type: 'warning',
       })
     })

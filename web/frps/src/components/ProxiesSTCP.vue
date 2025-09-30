@@ -1,5 +1,10 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="stcp" @refresh="fetchData"/>
+  <ProxyView
+    :proxies="proxies"
+    :loading="loading"
+    proxyType="STCP"
+    @refresh="fetchData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -8,8 +13,10 @@ import { STCPProxy } from '../utils/proxy.js'
 import ProxyView from './ProxyView.vue'
 
 let proxies = ref<STCPProxy[]>([])
+const loading = ref(false)
 
 const fetchData = () => {
+  loading.value = true
   fetch('../api/proxy/stcp', { credentials: 'include' })
     .then((res) => {
       return res.json()
@@ -19,6 +26,9 @@ const fetchData = () => {
       for (let proxyStats of json.proxies) {
         proxies.value.push(new STCPProxy(proxyStats))
       }
+    })
+    .finally(() => {
+      loading.value = false
     })
 }
 fetchData()

@@ -31,28 +31,28 @@ import (
 	quic "github.com/quic-go/quic-go"
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/pkg/auth"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	modelmetrics "github.com/fatedier/frp/pkg/metrics"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/nathole"
-	plugin "github.com/fatedier/frp/pkg/plugin/server"
-	"github.com/fatedier/frp/pkg/ssh"
-	"github.com/fatedier/frp/pkg/transport"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/log"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/tcpmux"
-	"github.com/fatedier/frp/pkg/util/util"
-	"github.com/fatedier/frp/pkg/util/version"
-	"github.com/fatedier/frp/pkg/util/vhost"
-	"github.com/fatedier/frp/pkg/util/xlog"
-	"github.com/fatedier/frp/server/controller"
-	"github.com/fatedier/frp/server/group"
-	"github.com/fatedier/frp/server/metrics"
-	"github.com/fatedier/frp/server/ports"
-	"github.com/fatedier/frp/server/proxy"
-	"github.com/fatedier/frp/server/visitor"
+	"github.com/laosan-xx/frp/pkg/auth"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	modelmetrics "github.com/laosan-xx/frp/pkg/metrics"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/nathole"
+	plugin "github.com/laosan-xx/frp/pkg/plugin/server"
+	"github.com/laosan-xx/frp/pkg/ssh"
+	"github.com/laosan-xx/frp/pkg/transport"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/tcpmux"
+	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/util/version"
+	"github.com/laosan-xx/frp/pkg/util/vhost"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/laosan-xx/frp/server/controller"
+	"github.com/laosan-xx/frp/server/group"
+	"github.com/laosan-xx/frp/server/metrics"
+	"github.com/laosan-xx/frp/server/ports"
+	"github.com/laosan-xx/frp/server/proxy"
+	"github.com/laosan-xx/frp/server/visitor"
 )
 
 const (
@@ -124,6 +124,9 @@ type Service struct {
 	ctx context.Context
 	// call cancel to stop service
 	cancel context.CancelFunc
+
+	// dashboard session manager
+	sessionMgr *netpkg.SessionManager
 }
 
 func NewService(cfg *v1.ServerConfig) (*Service, error) {
@@ -167,7 +170,10 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 		ctx:               context.Background(),
 	}
 	if webServer != nil {
-		webServer.RouteRegister(svr.registerRouteHandlers)
+		webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
+			svr.sessionMgr = helper.SessionManager
+			svr.registerRouteHandlers(helper)
+		})
 	}
 
 	// Create tcpmux httpconnect multiplexer.

@@ -24,10 +24,10 @@ import (
 
 	"github.com/samber/lo"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/transport"
-	"github.com/fatedier/frp/pkg/util/xlog"
-	"github.com/fatedier/frp/pkg/vnet"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/transport"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 type Manager struct {

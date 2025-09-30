@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import Login from '../views/Login.vue'
 import ServerOverview from '../components/ServerOverview.vue'
 import ProxiesTCP from '../components/ProxiesTCP.vue'
 import ProxiesUDP from '../components/ProxiesUDP.vue'
@@ -12,10 +13,17 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'Login',
+      component: Login,
+      meta: { layout: 'auth', public: true },
+    },
+    {
       path: '/',
       name: 'ServerOverview',
       component: ServerOverview,
     },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
     {
       path: '/proxies/tcp',
       name: 'ProxiesTCP',
@@ -52,6 +60,20 @@ const router = createRouter({
       component: ProxiesSUDP,
     },
   ],
+})
+
+// 添加路由守卫，检查认证状态
+router.beforeEach((to, _, next) => {
+  // 如果是公开路由（如登录页），直接放行
+  if (to.meta.public) {
+    next()
+    return
+  }
+
+  // 对于受保护的路由，直接放行
+  // 如果用户未登录，后续的 API 请求会返回 401
+  // 全局 401 拦截器会自动处理重定向到登录页
+  next()
 })
 
 export default router

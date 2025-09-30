@@ -21,12 +21,10 @@ import (
 	"net/http/pprof"
 	"strconv"
 	"time"
-
 	"github.com/gorilla/mux"
-
-	"github.com/fatedier/frp/assets"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/assets"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )
 
 var (
@@ -43,6 +41,7 @@ type Server struct {
 	hs     *http.Server
 
 	authMiddleware mux.MiddlewareFunc
+	sessionMgr     *netpkg.SessionManager
 }
 
 func NewServer(cfg v1.WebServerConfig) (*Server, error) {
@@ -83,7 +82,28 @@ func NewServer(cfg v1.WebServerConfig) (*Server, error) {
 			Certificates: []tls.Certificate{cert},
 		}
 	}
-	s.authMiddleware = netpkg.NewHTTPAuthMiddleware(cfg.User, cfg.Password).SetAuthFailDelay(200 * time.Millisecond).Middleware
+	// build session manager
+	sameSite := http.SameSiteLaxMode
+	switch cfg.SessionSameSite {
+	case "Strict":
+		sameSite = http.SameSiteStrictMode
+	case "None":
+		sameSite = http.SameSiteNoneMode
+	}
+	secret := []byte(cfg.SessionSecret)
+	if len(secret) == 0 {
+		// ephemeral secret for this run
+		secret = []byte(strconv.FormatInt(time.Now().UnixNano(), 10))
+	}
+	ttl := time.Duration(cfg.SessionTTLDays) * 24 * time.Hour
+	s.sessionMgr = netpkg.NewSessionManager(secret, cfg.SessionCookieName, ttl, sameSite, cfg.SessionSecure)
+
+	// select middleware: prefer session; if EnableBasicAuth true, use basic
+	if cfg.EnableBasicAuth {
+		s.authMiddleware = netpkg.NewHTTPAuthMiddleware(cfg.User, cfg.Password).SetAuthFailDelay(200 * time.Millisecond).Middleware
+	} else {
+		s.authMiddleware = s.sessionMgr.Middleware
+	}
 	return s, nil
 }
 
@@ -107,6 +127,7 @@ type RouterRegisterHelper struct {
 	Router         *mux.Router
 	AssetsFS       http.FileSystem
 	AuthMiddleware mux.MiddlewareFunc
+	SessionManager *netpkg.SessionManager
 }
 
 func (s *Server) RouteRegister(register func(helper *RouterRegisterHelper)) {
@@ -114,6 +135,7 @@ func (s *Server) RouteRegister(register func(helper *RouterRegisterHelper)) {
 		Router:         s.router,
 		AssetsFS:       assets.FileSystem,
 		AuthMiddleware: s.authMiddleware,
+		SessionManager: s.sessionMgr,
 	})
 }
 

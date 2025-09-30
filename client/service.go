@@ -27,17 +27,17 @@ import (
 	"github.com/fatedier/golib/crypto"
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/client/proxy"
-	"github.com/fatedier/frp/pkg/auth"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/log"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/version"
-	"github.com/fatedier/frp/pkg/util/wait"
-	"github.com/fatedier/frp/pkg/util/xlog"
-	"github.com/fatedier/frp/pkg/vnet"
+	"github.com/laosan-xx/frp/client/proxy"
+	"github.com/laosan-xx/frp/pkg/auth"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/version"
+	"github.com/laosan-xx/frp/pkg/util/wait"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 func init() {
@@ -149,15 +149,9 @@ func NewService(options ServiceOptions) (*Service, error) {
 		}
 		webServer = ws
 	}
-
-	authSetter, err := auth.NewAuthSetter(options.Common.Auth)
-	if err != nil {
-		return nil, err
-	}
-
 	s := &Service{
 		ctx:              context.Background(),
-		authSetter:       authSetter,
+		authSetter:       auth.NewAuthSetter(options.Common.Auth),
 		webServer:        webServer,
 		common:           options.Common,
 		configFilePath:   options.ConfigFilePath,

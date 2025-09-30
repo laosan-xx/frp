@@ -17,8 +17,11 @@ make -f ./Makefile.cross-compiles
 rm -rf ./release/packages
 mkdir -p ./release/packages
 
-os_all='linux windows darwin freebsd openbsd android'
-arch_all='386 amd64 arm arm64 mips64 mips64le mips mipsle riscv64 loong64'
+# 暂时只编译 amd64 和 arm 相关平台
+os_all='linux'
+# os_all='linux windows darwin freebsd openbsd android'
+arch_all='amd64 arm arm64'
+# arch_all='386 amd64 arm arm64 mips64 mips64le mips mipsle riscv64 loong64'
 extra_all='_ hf'
 
 cd ./release

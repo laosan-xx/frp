@@ -1,5 +1,10 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="https" @refresh="fetchData"/>
+  <ProxyView
+    :proxies="proxies"
+    :loading="loading"
+    proxyType="HTTPS"
+    @refresh="fetchData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -8,8 +13,10 @@ import { HTTPSProxy } from '../utils/proxy.js'
 import ProxyView from './ProxyView.vue'
 
 let proxies = ref<HTTPSProxy[]>([])
+const loading = ref(false)
 
 const fetchData = () => {
+  loading.value = true
   let vhostHTTPSPort: number
   let subdomainHost: string
   fetch('../api/serverinfo', { credentials: 'include' })
@@ -30,10 +37,13 @@ const fetchData = () => {
           proxies.value = []
           for (let proxyStats of json.proxies) {
             proxies.value.push(
-              new HTTPSProxy(proxyStats, vhostHTTPSPort, subdomainHost)
+              new HTTPSProxy(proxyStats, vhostHTTPSPort, subdomainHost),
             )
           }
         })
+    })
+    .finally(() => {
+      loading.value = false
     })
 }
 fetchData()

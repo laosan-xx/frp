@@ -1,5 +1,10 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="tcpmux" @refresh="fetchData" />
+  <ProxyView
+    :proxies="proxies"
+    :loading="loading"
+    proxyType="TCPMux"
+    @refresh="fetchData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -8,8 +13,10 @@ import { TCPMuxProxy } from '../utils/proxy.js'
 import ProxyView from './ProxyView.vue'
 
 let proxies = ref<TCPMuxProxy[]>([])
+const loading = ref(false)
 
 const fetchData = () => {
+  loading.value = true
   let tcpmuxHTTPConnectPort: number
   let subdomainHost: string
   fetch('../api/serverinfo', { credentials: 'include' })
@@ -27,9 +34,14 @@ const fetchData = () => {
         .then((json) => {
           proxies.value = []
           for (let proxyStats of json.proxies) {
-            proxies.value.push(new TCPMuxProxy(proxyStats, tcpmuxHTTPConnectPort, subdomainHost))
+            proxies.value.push(
+              new TCPMuxProxy(proxyStats, tcpmuxHTTPConnectPort, subdomainHost),
+            )
           }
         })
+    })
+    .finally(() => {
+      loading.value = false
     })
 }
 fetchData()

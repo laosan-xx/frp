@@ -16,20 +16,25 @@ package server
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"slices"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/fatedier/frp/pkg/config/types"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/metrics/mem"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/log"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/version"
+	"github.com/laosan-xx/frp/pkg/config/types"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/metrics/mem"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/util/version"
 )
 
 type GeneralResponse struct {
@@ -38,30 +43,48 @@ type GeneralResponse struct {
 }
 
 func (svr *Service) registerRouteHandlers(helper *httppkg.RouterRegisterHelper) {
+	// 公开接口（无需认证）
+	helper.Router.HandleFunc("/api/login", svr.apiLogin).Methods("POST")
+	helper.Router.HandleFunc("/api/logout", svr.apiLogout).Methods("POST")
+	helper.Router.HandleFunc("/api/captcha", svr.apiCaptcha).Methods("GET")
 	helper.Router.HandleFunc("/healthz", svr.healthz)
-	subRouter := helper.Router.NewRoute().Subrouter()
 
-	subRouter.Use(helper.AuthMiddleware.Middleware)
+	// 受保护的接口（需要认证）- 使用中间件包装每个处理器
+	authMiddleware := helper.AuthMiddleware.Middleware
 
 	// metrics
 	if svr.cfg.EnablePrometheus {
-		subRouter.Handle("/metrics", promhttp.Handler())
+		helper.Router.Handle("/metrics", authMiddleware(promhttp.Handler()))
 	}
 
-	// apis
-	subRouter.HandleFunc("/api/serverinfo", svr.apiServerInfo).Methods("GET")
-	subRouter.HandleFunc("/api/proxy/{type}", svr.apiProxyByType).Methods("GET")
-	subRouter.HandleFunc("/api/proxy/{type}/{name}", svr.apiProxyByTypeAndName).Methods("GET")
-	subRouter.HandleFunc("/api/traffic/{name}", svr.apiProxyTraffic).Methods("GET")
-	subRouter.HandleFunc("/api/proxies", svr.deleteProxies).Methods("DELETE")
+	// apis - 每个都需要认证
+	helper.Router.HandleFunc("/api/serverinfo", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiServerInfo)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxy/{type}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyByType)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxy/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyByTypeAndName)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/traffic/{name}", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.apiProxyTraffic)).ServeHTTP(w, r)
+	}).Methods("GET")
+	
+	helper.Router.HandleFunc("/api/proxies", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware(http.HandlerFunc(svr.deleteProxies)).ServeHTTP(w, r)
+	}).Methods("DELETE")
 
-	// view
-	subRouter.Handle("/favicon.ico", http.FileServer(helper.AssetsFS)).Methods("GET")
-	subRouter.PathPrefix("/static/").Handler(
-		netpkg.MakeHTTPGzipHandler(http.StripPrefix("/static/", http.FileServer(helper.AssetsFS))),
+	// view - 静态文件和根路径需要认证
+	helper.Router.Handle("/favicon.ico", authMiddleware(http.FileServer(helper.AssetsFS))).Methods("GET")
+	helper.Router.PathPrefix("/static/").Handler(
+		authMiddleware(netpkg.MakeHTTPGzipHandler(http.StripPrefix("/static/", http.FileServer(helper.AssetsFS)))),
 	).Methods("GET")
 
-	subRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	helper.Router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/", http.StatusMovedPermanently)
 	})
 }
@@ -403,4 +426,71 @@ func (svr *Service) deleteProxies(w http.ResponseWriter, r *http.Request) {
 	}
 	cleared, total := mem.StatsCollector.ClearOfflineProxies()
 	log.Infof("cleared [%d] offline proxies, total [%d] proxies", cleared, total)
+}
+
+type loginReq struct {
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	CaptchaID  string `json:"captchaId"`
+	CaptchaAns string `json:"captchaAns"`
+}
+
+var captchaStore = struct{ m map[string]string }{m: map[string]string{}}
+
+// SHA256 加密函数
+func sha256Hash(text string) string {
+	hash := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(hash[:])
+}
+
+func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
+	var req loginReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.CaptchaID != "" {
+		if ans, ok := captchaStore.m[req.CaptchaID]; !ok || ans != req.CaptchaAns {
+			log.Infof("验证码验证失败: captchaId=%s, expected=%s, received=%s", req.CaptchaID, ans, req.CaptchaAns)
+			http.Error(w, "invalid captcha", http.StatusUnauthorized)
+			return
+		}
+		// 验证成功后删除验证码，防止重复使用
+		delete(captchaStore.m, req.CaptchaID)
+	}
+	
+	// 安全检查：如果未设置用户名和密码，拒绝登录
+	if svr.cfg.WebServer.User == "" && svr.cfg.WebServer.Password == "" {
+		http.Error(w, "authentication not configured", http.StatusUnauthorized)
+		return
+	}
+	
+	// 验证用户名和密码（使用 SHA256 比较）
+	expectedPasswordHash := sha256Hash(svr.cfg.WebServer.Password)
+	if !(req.Username == svr.cfg.WebServer.User && req.Password == expectedPasswordHash) {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+	
+	if svr.sessionMgr != nil {
+		_ = svr.sessionMgr.Issue(w, req.Username)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (svr *Service) apiLogout(w http.ResponseWriter, _ *http.Request) {
+	if svr.sessionMgr != nil {
+		svr.sessionMgr.Clear(w)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
+	id, _ := util.RandID()
+	// 生成4位数字验证码
+	code := fmt.Sprintf("%04d", rand.Intn(10000))
+	captchaStore.m[id] = code
+	log.Infof("生成验证码: id=%s, code=%s", id, code)
+	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\"><rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/><text x=\"18\" y=\"27\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
+	resp := map[string]string{"id": id, "svg": svg}
+	buf, _ := json.Marshal(resp)
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(buf)
 }

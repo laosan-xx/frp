@@ -19,12 +19,12 @@ import (
 	"net"
 	"sync"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	plugin "github.com/fatedier/frp/pkg/plugin/visitor"
-	"github.com/fatedier/frp/pkg/transport"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/xlog"
-	"github.com/fatedier/frp/pkg/vnet"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	plugin "github.com/laosan-xx/frp/pkg/plugin/visitor"
+	"github.com/laosan-xx/frp/pkg/transport"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 // Helper wraps some functions for visitor to use.

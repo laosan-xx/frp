@@ -1,8 +1,11 @@
 import * as Humanize from 'humanize-plus'
 import * as echarts from 'echarts/core'
+import 'echarts/theme/dark'
 import { PieChart, BarChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LabelLayout } from 'echarts/features'
+import { useDark } from '@vueuse/core'
+import { watch } from 'vue'
 
 import {
   TitleComponent,
@@ -22,15 +25,96 @@ echarts.use([
   GridComponent,
 ])
 
+// 获取深色模式状态
+const isDark = useDark()
+
+// 存储所有图表实例以便主题切换
+const chartInstances = new Map<string, echarts.ECharts>()
+// 存储每个图表的“原始”配置（未被主题展开的配置）
+const chartBaseOptions = new Map<string, echarts.EChartsCoreOption>()
+// 存储每个图表容器的 ResizeObserver
+const chartResizeObservers = new Map<string, ResizeObserver>()
+
+function ensureContainerResizeObserver(elementId: string, el: HTMLElement) {
+  if (chartResizeObservers.has(elementId)) return
+  const ro = new ResizeObserver(() => {
+    const chart = chartInstances.get(elementId)
+    if (chart) {
+      try {
+        chart.resize()
+      } catch {}
+    }
+  })
+  ro.observe(el)
+  chartResizeObservers.set(elementId, ro)
+}
+
+// 简单的去抖函数，避免频繁 resize 触发
+function debounce<T extends (...args: any[]) => void>(fn: T, delayMs = 150) {
+  let timer: number | undefined
+  return (...args: Parameters<T>) => {
+    if (timer != null) {
+      clearTimeout(timer)
+    }
+    timer = window.setTimeout(() => fn(...args), delayMs)
+  }
+}
+
+// 绑定全局窗口大小变化时重绘（防止 HMR/多次导入重复绑定）
+const w = window as any
+if (!w.__echartsResizeBound__) {
+  const doResize = debounce(() => {
+    chartInstances.forEach((chart) => {
+      try {
+        chart.resize()
+      } catch {}
+    })
+  })
+  window.addEventListener('resize', doResize)
+  w.__echartsResizeBound__ = true
+}
+
+// 监听主题变化
+watch(isDark, (newIsDark) => {
+  const theme = newIsDark ? 'dark' : undefined
+  // 更新所有图表实例的主题
+  chartInstances.forEach((chart, elementId) => {
+    // 优先使用初始配置，以便让新主题的默认样式生效
+    const baseOption = chartBaseOptions.get(elementId) || chart.getOption()
+    const domElement = chart.getDom() // 在dispose前获取DOM元素
+    chart.dispose()
+    const newChart = echarts.init(domElement, theme)
+    newChart.setOption(baseOption, true)
+    // 更新Map中的实例
+    chartInstances.set(elementId, newChart)
+    // 绑定容器尺寸变化监听
+    ensureContainerResizeObserver(elementId, domElement as HTMLElement)
+  })
+})
+
+// 获取当前主题
+function getCurrentTheme() {
+  return isDark.value ? 'dark' : undefined
+}
+
 function DrawTrafficChart(
   elementId: string,
   trafficIn: number,
-  trafficOut: number
+  trafficOut: number,
 ) {
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons'
+    getCurrentTheme(),
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+  // 绑定容器尺寸变化监听
+  ensureContainerResizeObserver(
+    elementId,
+    document.getElementById(elementId) as HTMLElement
+  )
+
   myChart.showLoading()
 
   const option = {
@@ -75,6 +159,8 @@ function DrawTrafficChart(
       },
     ],
   }
+  // 记录原始配置用于主题切换
+  chartBaseOptions.set(elementId, option)
   myChart.setOption(option)
   myChart.hideLoading()
 }
@@ -82,8 +168,17 @@ function DrawTrafficChart(
 function DrawProxyChart(elementId: string, serverInfo: any) {
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons'
+    getCurrentTheme()
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+  // 绑定容器尺寸变化监听
+  ensureContainerResizeObserver(
+    elementId,
+    document.getElementById(elementId) as HTMLElement
+  )
+
   myChart.showLoading()
 
   const option = {
@@ -191,6 +286,8 @@ function DrawProxyChart(elementId: string, serverInfo: any) {
     option.legend.data.push('XTCP')
   }
 
+  // 记录原始配置用于主题切换
+  chartBaseOptions.set(elementId, option)
   myChart.setOption(option)
   myChart.hideLoading()
 }
@@ -201,16 +298,19 @@ function DrawProxyTrafficChart(
   trafficInArr: number[],
   trafficOutArr: number[]
 ) {
-  const params = {
-    width: '600px',
-    height: '400px',
-  }
-
   const myChart = echarts.init(
     document.getElementById(elementId) as HTMLElement,
-    'macarons',
-    params
+    getCurrentTheme()
   )
+
+  // 存储图表实例
+  chartInstances.set(elementId, myChart)
+  // 绑定容器尺寸变化监听
+  ensureContainerResizeObserver(
+    elementId,
+    document.getElementById(elementId) as HTMLElement
+  )
+
   myChart.showLoading()
 
   trafficInArr = trafficInArr.reverse()
@@ -286,6 +386,8 @@ function DrawProxyTrafficChart(
       },
     ],
   }
+  // 记录原始配置用于主题切换
+  chartBaseOptions.set(elementId, option)
   myChart.setOption(option)
   myChart.hideLoading()
 }

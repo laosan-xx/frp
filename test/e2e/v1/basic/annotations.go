@@ -8,8 +8,8 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/tidwall/gjson"
 
-	"github.com/fatedier/frp/test/e2e/framework"
-	"github.com/fatedier/frp/test/e2e/framework/consts"
+	"github.com/laosan-xx/frp/test/e2e/framework"
+	"github.com/laosan-xx/frp/test/e2e/framework/consts"
 )
 
 var _ = ginkgo.Describe("[Feature: Annotations]", func() {

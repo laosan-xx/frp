@@ -17,7 +17,7 @@ package v1
 import (
 	"sync"
 
-	"github.com/fatedier/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/util/util"
 )
 
 // TODO(fatedier): Due to the current implementation issue of the go json library, the UnmarshalJSON method
@@ -78,16 +78,40 @@ type WebServerConfig struct {
 	PprofEnable bool `json:"pprofEnable,omitempty"`
 	// Enable TLS if TLSConfig is not nil.
 	TLS *TLSConfig `json:"tls,omitempty"`
+
+	// EnableBasicAuth keeps legacy Basic Auth protection for dashboard.
+	// Default is false.
+	EnableBasicAuth bool `json:"enableBasicAuth,omitempty"`
+	// SessionSecret is the secret for signing session cookies. If empty, a
+	// random secret will be generated at runtime (not persisted).
+	SessionSecret string `json:"sessionSecret,omitempty"`
+	// SessionCookieName is the cookie name for dashboard session.
+	SessionCookieName string `json:"sessionCookieName,omitempty"`
+	// SessionTTLDays defines session lifetime in days. Default 30.
+	SessionTTLDays int `json:"sessionTtlDays,omitempty"`
+	// SessionSameSite sets SameSite mode: "Lax" (default), "Strict", "None".
+	SessionSameSite string `json:"sessionSameSite,omitempty"`
+	// SessionSecure marks cookie Secure flag. Default false.
+	SessionSecure bool `json:"sessionSecure,omitempty"`
 }
 
 func (c *WebServerConfig) Complete() {
 	c.Addr = util.EmptyOr(c.Addr, "127.0.0.1")
+	if c.SessionCookieName == "" {
+		c.SessionCookieName = "frps_session"
+	}
+	if c.SessionTTLDays == 0 {
+		c.SessionTTLDays = 30
+	}
+	if c.SessionSameSite == "" {
+		c.SessionSameSite = "Lax"
+	}
 }
 
 type TLSConfig struct {
-	// CertFile specifies the path of the cert file that client will load.
+	// CertPath specifies the path of the cert file that client will load.
 	CertFile string `json:"certFile,omitempty"`
-	// KeyFile specifies the path of the secret key file that client will load.
+	// KeyPath specifies the path of the secret key file that client will load.
 	KeyFile string `json:"keyFile,omitempty"`
 	// TrustedCaFile specifies the path of the trusted ca file that will load.
 	TrustedCaFile string `json:"trustedCaFile,omitempty"`

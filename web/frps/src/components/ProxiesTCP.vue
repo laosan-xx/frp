@@ -1,5 +1,10 @@
 <template>
-  <ProxyView :proxies="proxies" proxyType="tcp" @refresh="fetchData" />
+  <ProxyView
+    :proxies="proxies"
+    :loading="loading"
+    proxyType="TCP"
+    @refresh="fetchData"
+  />
 </template>
 
 <script setup lang="ts">
@@ -8,8 +13,10 @@ import { TCPProxy } from '../utils/proxy.js'
 import ProxyView from './ProxyView.vue'
 
 let proxies = ref<TCPProxy[]>([])
+const loading = ref(false)
 
 const fetchData = () => {
+  loading.value = true
   fetch('../api/proxy/tcp', { credentials: 'include' })
     .then((res) => {
       return res.json()
@@ -19,6 +26,9 @@ const fetchData = () => {
       for (let proxyStats of json.proxies) {
         proxies.value.push(new TCPProxy(proxyStats))
       }
+    })
+    .finally(() => {
+      loading.value = false
     })
 }
 fetchData()
