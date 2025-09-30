@@ -2,6 +2,8 @@ name: Auto-Async
 
 on:
   push:
+    branches: [main]
+    tags-ignore: ['*']
   schedule:
     #自动同步：每天早上1点
     - cron:  0 17 * * *
