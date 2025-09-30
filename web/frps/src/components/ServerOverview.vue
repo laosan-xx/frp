@@ -234,12 +234,15 @@ const fetchData = () => {
       DrawTrafficChart('traffic', json.totalTrafficIn, json.totalTrafficOut)
       DrawProxyChart('proxies', json)
     })
-    .catch(() => {
-      ElMessage({
-        showClose: true,
-        message: '从 frps 获取服务器信息失败！',
-        type: 'warning',
-      })
+    .catch((err) => {
+      // 只有不是 401（未授权）时才提示
+      if (!(err && err.status === 401)) {
+        ElMessage({
+          showClose: true,
+          message: '从 frps 获取服务器信息失败！',
+          type: 'warning',
+        })
+      }
     })
 }
 fetchData()
@@ -356,7 +359,6 @@ html.dark .chart-container {
   width: 100% !important;
   margin-bottom: 0;
 }
-
 
 @media (min-width: 992px) {
   .network-traffic {

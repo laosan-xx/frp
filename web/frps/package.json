@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check build-only",
+    "postbuild": "rm -rf ../../assets/frps/static/* && cp -r dist/* ../../assets/frps/static/ && echo 'Build files copied successfully!'",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit",
