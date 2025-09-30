@@ -142,7 +142,7 @@ func (v *Muxer) Listen(ctx context.Context, cfg *RouteConfig) (l *Listener, err 
 	}
 	err = v.registryRouter.Add(cfg.Domain, cfg.Location, cfg.RouteByHTTPUser, l)
 	if err != nil {
-		return
+		return l, err
 	}
 	return l, nil
 }

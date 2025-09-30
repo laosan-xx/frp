@@ -118,7 +118,7 @@ func (vm *Manager) startVisitor(cfg v1.VisitorConfigurer) (err error) {
 	visitor, err := NewVisitor(vm.ctx, cfg, vm.clientCfg, vm.helper)
 	if err != nil {
 		xl.Warnf("new visitor error: %v", err)
-		return
+		return err
 	}
 	err = visitor.Run()
 	if err != nil {
@@ -127,7 +127,7 @@ func (vm *Manager) startVisitor(cfg v1.VisitorConfigurer) (err error) {
 		vm.visitors[name] = visitor
 		xl.Infof("start visitor success")
 	}
-	return
+	return err
 }
 
 func (vm *Manager) UpdateAll(cfgs []v1.VisitorConfigurer) {

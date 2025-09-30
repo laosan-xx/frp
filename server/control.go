@@ -65,7 +65,7 @@ func (cm *ControlManager) Add(runID string, ctl *Control) (old *Control) {
 		old.Replaced(ctl)
 	}
 	cm.ctlsByRunID[runID] = ctl
-	return
+	return old
 }
 
 // we should make sure if it's the same control to prevent delete a new one
@@ -81,7 +81,7 @@ func (cm *ControlManager) GetByID(runID string) (ctl *Control, ok bool) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 	ctl, ok = cm.ctlsByRunID[runID]
-	return
+	return ctl, ok
 }
 
 func (cm *ControlManager) Close() error {
@@ -267,7 +267,7 @@ func (ctl *Control) GetWorkConn() (workConn net.Conn, err error) {
 	case workConn, ok = <-ctl.workConnCh:
 		if !ok {
 			err = pkgerr.ErrCtlClosed
-			return
+			return workConn, err
 		}
 		xl.Debugf("get work connection from pool")
 	default:
@@ -281,19 +281,19 @@ func (ctl *Control) GetWorkConn() (workConn net.Conn, err error) {
 			if !ok {
 				err = pkgerr.ErrCtlClosed
 				xl.Warnf("no work connections available, %v", err)
-				return
+				return workConn, err
 			}
 
 		case <-time.After(time.Duration(ctl.serverCfg.UserConnTimeout) * time.Second):
 			err = fmt.Errorf("timeout trying to get work connection")
 			xl.Warnf("%v", err)
-			return
+			return workConn, err
 		}
 	}
 
 	// When we get a work connection from pool, replace it with a new one.
 	_ = ctl.msgDispatcher.Send(&msg.ReqWorkConn{})
-	return
+	return workConn, err
 }
 
 func (ctl *Control) heartbeatWorker() {
@@ -458,7 +458,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 	// Load configures from NewProxy message and validate.
 	pxyConf, err = config.NewProxyConfigurerFromMsg(pxyMsg, ctl.serverCfg)
 	if err != nil {
-		return
+		return remoteAddr, err
 	}
 
 	// User info
@@ -489,7 +489,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		if ctl.portsUsedNum+pxy.GetUsedPortsNum() > int(ctl.serverCfg.MaxPortsPerClient) {
 			ctl.mu.Unlock()
 			err = fmt.Errorf("exceed the max_ports_per_client")
-			return
+			return remoteAddr, err
 		}
 		ctl.portsUsedNum += pxy.GetUsedPortsNum()
 		ctl.mu.Unlock()
@@ -505,12 +505,12 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 
 	if ctl.pxyManager.Exist(pxyMsg.ProxyName) {
 		err = fmt.Errorf("proxy [%s] already exists", pxyMsg.ProxyName)
-		return
+		return remoteAddr, err
 	}
 
 	remoteAddr, err = pxy.Run()
 	if err != nil {
-		return
+		return remoteAddr, err
 	}
 	defer func() {
 		if err != nil {
@@ -520,13 +520,13 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 
 	err = ctl.pxyManager.Add(pxyMsg.ProxyName, pxy)
 	if err != nil {
-		return
+		return remoteAddr, err
 	}
 
 	ctl.mu.Lock()
 	ctl.proxies[pxy.GetName()] = pxy
 	ctl.mu.Unlock()
-	return
+	return remoteAddr, err
 }
 
 func (ctl *Control) CloseProxy(closeMsg *msg.CloseProxy) (err error) {
@@ -534,7 +534,7 @@ func (ctl *Control) CloseProxy(closeMsg *msg.CloseProxy) (err error) {
 	pxy, ok := ctl.proxies[closeMsg.ProxyName]
 	if !ok {
 		ctl.mu.Unlock()
-		return
+		return err
 	}
 
 	if ctl.serverCfg.MaxPortsPerClient > 0 {
@@ -560,5 +560,5 @@ func (ctl *Control) CloseProxy(closeMsg *msg.CloseProxy) (err error) {
 	go func() {
 		_ = ctl.pluginManager.CloseProxy(notifyContent)
 	}()
-	return
+	return err
 }

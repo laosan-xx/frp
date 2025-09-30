@@ -52,7 +52,7 @@ func isStaticFileRequest(path string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -81,7 +81,7 @@ func (authMid *HTTPAuthMiddleware) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// 安全检查：如果未设置用户名和密码，拒绝访问
 		if authMid.user == "" && authMid.passwd == "" {
 			if authMid.authFailDelay > 0 {
@@ -91,7 +91,7 @@ func (authMid *HTTPAuthMiddleware) Middleware(next http.Handler) http.Handler {
 			http.Error(w, "authentication not configured", http.StatusUnauthorized)
 			return
 		}
-		
+
 		reqUser, reqPasswd, hasAuth := r.BasicAuth()
 		if hasAuth && util.ConstantTimeEqString(reqUser, authMid.user) &&
 			util.ConstantTimeEqString(reqPasswd, authMid.passwd) {
@@ -170,7 +170,7 @@ func (sm *SessionManager) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		c, err := r.Cookie(sm.cookieName)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

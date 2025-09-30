@@ -98,12 +98,12 @@ func (tg *TCPGroup) Listen(proxyName string, group string, groupKey string, addr
 		// the first listener, listen on the real address
 		realPort, err = tg.ctl.portManager.Acquire(proxyName, port)
 		if err != nil {
-			return
+			return ln, realPort, err
 		}
 		tcpLn, errRet := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(port)))
 		if errRet != nil {
 			err = errRet
-			return
+			return ln, realPort, err
 		}
 		ln = newTCPGroupListener(group, tg, tcpLn.Addr())
 
@@ -122,21 +122,21 @@ func (tg *TCPGroup) Listen(proxyName string, group string, groupKey string, addr
 		// address and port in the same group must be equal
 		if tg.group != group || tg.addr != addr {
 			err = ErrGroupParamsInvalid
-			return
+			return ln, realPort, err
 		}
 		if tg.port != port {
 			err = ErrGroupDifferentPort
-			return
+			return ln, realPort, err
 		}
 		if tg.groupKey != groupKey {
 			err = ErrGroupAuthFailed
-			return
+			return ln, realPort, err
 		}
 		ln = newTCPGroupListener(group, tg, tg.lns[0].Addr())
 		realPort = tg.realPort
 		tg.lns = append(tg.lns, ln)
 	}
-	return
+	return ln, realPort, err
 }
 
 // worker is called when the real tcp listener has been created
@@ -219,5 +219,5 @@ func (ln *TCPGroupListener) Close() (err error) {
 
 	// remove self from TcpGroup
 	ln.group.CloseListener(ln)
-	return
+	return err
 }

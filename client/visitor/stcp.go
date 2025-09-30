@@ -38,7 +38,7 @@ func (sv *STCPVisitor) Run() (err error) {
 	if sv.cfg.BindPort > 0 {
 		sv.l, err = net.Listen("tcp", net.JoinHostPort(sv.cfg.BindAddr, strconv.Itoa(sv.cfg.BindPort)))
 		if err != nil {
-			return
+			return err
 		}
 		go sv.worker()
 	}
@@ -48,7 +48,7 @@ func (sv *STCPVisitor) Run() (err error) {
 	if sv.plugin != nil {
 		sv.plugin.Start()
 	}
-	return
+	return err
 }
 
 func (sv *STCPVisitor) Close() {

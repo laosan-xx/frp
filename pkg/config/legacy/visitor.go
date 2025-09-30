@@ -108,12 +108,12 @@ type SUDPVisitorConf struct {
 func (cfg *SUDPVisitorConf) UnmarshalFromIni(prefix string, name string, section *ini.Section) (err error) {
 	err = preVisitorUnmarshalFromIni(cfg, prefix, name, section)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Add custom logic unmarshal, if exists
 
-	return
+	return err
 }
 
 type STCPVisitorConf struct {
@@ -123,12 +123,12 @@ type STCPVisitorConf struct {
 func (cfg *STCPVisitorConf) UnmarshalFromIni(prefix string, name string, section *ini.Section) (err error) {
 	err = preVisitorUnmarshalFromIni(cfg, prefix, name, section)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Add custom logic unmarshal, if exists
 
-	return
+	return err
 }
 
 type XTCPVisitorConf struct {
@@ -145,7 +145,7 @@ type XTCPVisitorConf struct {
 func (cfg *XTCPVisitorConf) UnmarshalFromIni(prefix string, name string, section *ini.Section) (err error) {
 	err = preVisitorUnmarshalFromIni(cfg, prefix, name, section)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Add custom logic unmarshal, if exists
@@ -161,7 +161,7 @@ func (cfg *XTCPVisitorConf) UnmarshalFromIni(prefix string, name string, section
 	if cfg.FallbackTimeoutMs <= 0 {
 		cfg.FallbackTimeoutMs = 1000
 	}
-	return
+	return err
 }
 
 // Visitor loaded from ini

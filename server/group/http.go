@@ -95,7 +95,7 @@ func (g *HTTPGroup) Register(
 		tmp.CreateConnByEndpointFn = g.createConnByEndpoint
 		err = g.ctl.vhostRouter.Add(routeConfig.Domain, routeConfig.Location, routeConfig.RouteByHTTPUser, &tmp)
 		if err != nil {
-			return
+			return err
 		}
 
 		g.group = group
@@ -107,16 +107,16 @@ func (g *HTTPGroup) Register(
 		if g.group != group || g.domain != routeConfig.Domain ||
 			g.location != routeConfig.Location || g.routeByHTTPUser != routeConfig.RouteByHTTPUser {
 			err = ErrGroupParamsInvalid
-			return
+			return err
 		}
 		if g.groupKey != groupKey {
 			err = ErrGroupAuthFailed
-			return
+			return err
 		}
 	}
 	if _, ok := g.createFuncs[proxyName]; ok {
 		err = ErrProxyRepeated
-		return
+		return err
 	}
 	g.createFuncs[proxyName] = routeConfig.CreateConnFn
 	g.pxyNames = append(g.pxyNames, proxyName)
@@ -138,7 +138,7 @@ func (g *HTTPGroup) UnRegister(proxyName string) (isEmpty bool) {
 		isEmpty = true
 		g.ctl.vhostRouter.Del(g.domain, g.location, g.routeByHTTPUser)
 	}
-	return
+	return isEmpty
 }
 
 func (g *HTTPGroup) createConn(remoteAddr string) (net.Conn, error) {

@@ -50,13 +50,13 @@ func (pxy *SUDPProxy) Run() (remoteAddr string, err error) {
 	listener, errRet := pxy.rc.VisitorManager.Listen(pxy.GetName(), pxy.cfg.Secretkey, allowUsers)
 	if errRet != nil {
 		err = errRet
-		return
+		return remoteAddr, err
 	}
 	pxy.listeners = append(pxy.listeners, listener)
 	xl.Infof("sudp proxy custom listen success")
 
 	pxy.startCommonTCPListenersHandler()
-	return
+	return remoteAddr, err
 }
 
 func (pxy *SUDPProxy) Close() {

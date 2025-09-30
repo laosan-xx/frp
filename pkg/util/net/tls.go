@@ -35,7 +35,7 @@ func CheckAndEnableTLSServerConnWithTimeout(
 	n, err = r.Read(buf)
 	_ = c.SetReadDeadline(time.Time{})
 	if err != nil {
-		return
+		return out, isTLS, custom, err
 	}
 
 	switch {
@@ -49,9 +49,9 @@ func CheckAndEnableTLSServerConnWithTimeout(
 	default:
 		if tlsOnly {
 			err = fmt.Errorf("non-TLS connection received on a TlsOnly server")
-			return
+			return out, isTLS, custom, err
 		}
 		out = sc
 	}
-	return
+	return out, isTLS, custom, err
 }

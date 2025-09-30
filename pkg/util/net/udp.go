@@ -212,7 +212,7 @@ func ListenUDP(bindAddr string, bindPort int) (l *UDPListener, err error) {
 		}
 	}()
 
-	return
+	return l, err
 }
 
 func (l *UDPListener) writeUDPPacket(packet *UDPPacket) (err error) {
@@ -222,7 +222,7 @@ func (l *UDPListener) writeUDPPacket(packet *UDPPacket) (err error) {
 		}
 	}()
 	l.writeCh <- packet
-	return
+	return err
 }
 
 func (l *UDPListener) WriteMsg(buf []byte, remoteAddr *net.UDPAddr) (err error) {
@@ -232,7 +232,7 @@ func (l *UDPListener) WriteMsg(buf []byte, remoteAddr *net.UDPAddr) (err error) 
 		RemoteAddr: remoteAddr,
 	}
 	err = l.writeUDPPacket(packet)
-	return
+	return err
 }
 
 func (l *UDPListener) Accept() (net.Conn, error) {

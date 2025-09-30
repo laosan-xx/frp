@@ -266,7 +266,7 @@ func (svr *Service) login() (conn net.Conn, connector Connector, err error) {
 
 	conn, err = connector.Connect()
 	if err != nil {
-		return
+		return conn, connector, err
 	}
 
 	loginMsg := &msg.Login{
@@ -285,31 +285,31 @@ func (svr *Service) login() (conn net.Conn, connector Connector, err error) {
 
 	// Add auth
 	if err = svr.authSetter.SetLogin(loginMsg); err != nil {
-		return
+		return conn, connector, err
 	}
 
 	if err = msg.WriteMsg(conn, loginMsg); err != nil {
-		return
+		return conn, connector, err
 	}
 
 	var loginRespMsg msg.LoginResp
 	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	if err = msg.ReadMsgInto(conn, &loginRespMsg); err != nil {
-		return
+		return conn, connector, err
 	}
 	_ = conn.SetReadDeadline(time.Time{})
 
 	if loginRespMsg.Error != "" {
 		err = fmt.Errorf("%s", loginRespMsg.Error)
 		xl.Errorf("%s", loginRespMsg.Error)
-		return
+		return conn, connector, err
 	}
 
 	svr.runID = loginRespMsg.RunID
 	xl.AddPrefix(xlog.LogPrefix{Name: "runID", Value: svr.runID})
 
 	xl.Infof("login to server success, get run id [%s]", loginRespMsg.RunID)
-	return
+	return conn, connector, err
 }
 
 func (svr *Service) loopLoginUntilSuccess(maxInterval time.Duration, firstLoginExit bool) {

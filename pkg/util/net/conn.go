@@ -154,7 +154,7 @@ func (cc *CloseNotifyConn) Close() (err error) {
 			cc.closeFn()
 		}
 	}
-	return
+	return err
 }
 
 type StatsConn struct {
@@ -176,13 +176,13 @@ func WrapStatsConn(conn net.Conn, statsFunc func(total, totalWrite int64)) *Stat
 func (statsConn *StatsConn) Read(p []byte) (n int, err error) {
 	n, err = statsConn.Conn.Read(p)
 	statsConn.totalRead += int64(n)
-	return
+	return n, err
 }
 
 func (statsConn *StatsConn) Write(p []byte) (n int, err error) {
 	n, err = statsConn.Conn.Write(p)
 	statsConn.totalWrite += int64(n)
-	return
+	return n, err
 }
 
 func (statsConn *StatsConn) Close() (err error) {
@@ -193,7 +193,7 @@ func (statsConn *StatsConn) Close() (err error) {
 			statsConn.statsFunc(statsConn.totalRead, statsConn.totalWrite)
 		}
 	}
-	return
+	return err
 }
 
 type wrapQuicStream struct {

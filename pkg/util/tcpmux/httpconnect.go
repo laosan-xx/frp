@@ -51,12 +51,12 @@ func (muxer *HTTPConnectTCPMuxer) readHTTPConnectRequest(rd io.Reader) (host, ht
 
 	req, err := http.ReadRequest(bufioReader)
 	if err != nil {
-		return
+		return host, httpUser, httpPwd, err
 	}
 
 	if req.Method != "CONNECT" {
 		err = fmt.Errorf("connections to tcp vhost must be of method CONNECT")
-		return
+		return host, httpUser, httpPwd, err
 	}
 
 	host, _ = httppkg.CanonicalHost(req.Host)
@@ -64,7 +64,7 @@ func (muxer *HTTPConnectTCPMuxer) readHTTPConnectRequest(rd io.Reader) (host, ht
 	if proxyAuth != "" {
 		httpUser, httpPwd, _ = httppkg.ParseBasicAuth(proxyAuth)
 	}
-	return
+	return host, httpUser, httpPwd, err
 }
 
 func (muxer *HTTPConnectTCPMuxer) sendConnectResponse(c net.Conn, _ map[string]string) error {

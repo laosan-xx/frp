@@ -101,12 +101,12 @@ func (r *Routers) Get(host, path, httpUser string) (vr *Router, exist bool) {
 
 	routersByHTTPUser, found := r.indexByDomain[host]
 	if !found {
-		return
+		return vr, exist
 	}
 
 	vrs, found := routersByHTTPUser[httpUser]
 	if !found {
-		return
+		return vr, exist
 	}
 
 	for _, vr = range vrs {
@@ -114,17 +114,17 @@ func (r *Routers) Get(host, path, httpUser string) (vr *Router, exist bool) {
 			return vr, true
 		}
 	}
-	return
+	return vr, exist
 }
 
 func (r *Routers) exist(host, path, httpUser string) (route *Router, exist bool) {
 	routersByHTTPUser, found := r.indexByDomain[host]
 	if !found {
-		return
+		return route, exist
 	}
 	routers, found := routersByHTTPUser[httpUser]
 	if !found {
-		return
+		return route, exist
 	}
 
 	for _, route = range routers {
@@ -132,5 +132,5 @@ func (r *Routers) exist(host, path, httpUser string) (route *Router, exist bool)
 			return route, true
 		}
 	}
-	return
+	return route, exist
 }

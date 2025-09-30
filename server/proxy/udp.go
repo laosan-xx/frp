@@ -92,13 +92,13 @@ func (pxy *UDPProxy) Run() (remoteAddr string, err error) {
 	addr, errRet := net.ResolveUDPAddr("udp", net.JoinHostPort(pxy.serverCfg.ProxyBindAddr, strconv.Itoa(pxy.realBindPort)))
 	if errRet != nil {
 		err = errRet
-		return
+		return remoteAddr, err
 	}
 	udpConn, errRet := net.ListenUDP("udp", addr)
 	if errRet != nil {
 		err = errRet
 		xl.Warnf("listen udp port error: %v", err)
-		return
+		return remoteAddr, err
 	}
 	xl.Infof("udp proxy listen port [%d]", pxy.cfg.RemotePort)
 

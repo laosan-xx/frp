@@ -64,7 +64,7 @@ func (tmgc *TCPMuxGroupCtl) Listen(
 		return tcpMuxGroup.HTTPConnectListen(ctx, group, groupKey, routeConfig)
 	default:
 		err = fmt.Errorf("unknown multiplexer [%s]", multiplexer)
-		return
+		return l, err
 	}
 }
 
@@ -144,7 +144,7 @@ func (tmg *TCPMuxGroup) HTTPConnectListen(
 		ln = newTCPMuxGroupListener(group, tmg, tmg.lns[0].Addr())
 		tmg.lns = append(tmg.lns, ln)
 	}
-	return
+	return ln, err
 }
 
 // worker is called when the real TCP listener has been created
@@ -226,5 +226,5 @@ func (ln *TCPMuxGroupListener) Close() (err error) {
 
 	// remove self from TcpMuxGroup
 	ln.group.CloseListener(ln)
-	return
+	return err
 }

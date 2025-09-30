@@ -72,19 +72,19 @@ func (vm *Manager) NewConn(name string, conn net.Conn, timestamp int64, signKey 
 	if l, ok := vm.listeners[name]; ok {
 		if util.GetAuthKey(l.sk, timestamp) != signKey {
 			err = fmt.Errorf("visitor connection of [%s] auth failed", name)
-			return
+			return err
 		}
 
 		if !slices.Contains(l.allowUsers, visitorUser) && !slices.Contains(l.allowUsers, "*") {
 			err = fmt.Errorf("visitor connection of [%s] user [%s] not allowed", name, visitorUser)
-			return
+			return err
 		}
 
 		var rwc io.ReadWriteCloser = conn
 		if useEncryption {
 			if rwc, err = libio.WithEncryption(rwc, []byte(l.sk)); err != nil {
 				err = fmt.Errorf("create encryption connection failed: %v", err)
-				return
+				return err
 			}
 		}
 		if useCompression {
@@ -93,9 +93,9 @@ func (vm *Manager) NewConn(name string, conn net.Conn, timestamp int64, signKey 
 		err = l.l.PutConn(netpkg.WrapReadWriteCloserToConn(rwc, conn))
 	} else {
 		err = fmt.Errorf("custom listener for [%s] doesn't exist", name)
-		return
+		return err
 	}
-	return
+	return err
 }
 
 func (vm *Manager) CloseListener(name string) {

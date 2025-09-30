@@ -48,7 +48,7 @@ func NewWebsocketListener(ln net.Listener) (wl *WebsocketListener) {
 	go func() {
 		_ = wl.server.Serve(ln)
 	}()
-	return
+	return wl
 }
 
 func (p *WebsocketListener) Accept() (net.Conn, error) {

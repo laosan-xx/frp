@@ -91,7 +91,7 @@ func (pxy *HTTPProxy) Run() (remoteAddr string, err error) {
 			if pxy.cfg.LoadBalancer.Group != "" {
 				err = pxy.rc.HTTPGroupCtl.Register(pxy.name, pxy.cfg.LoadBalancer.Group, pxy.cfg.LoadBalancer.GroupKey, routeConfig)
 				if err != nil {
-					return
+					return remoteAddr, err
 				}
 
 				pxy.closeFuncs = append(pxy.closeFuncs, func() {
@@ -101,7 +101,7 @@ func (pxy *HTTPProxy) Run() (remoteAddr string, err error) {
 				// no group
 				err = pxy.rc.HTTPReverseProxy.Register(routeConfig)
 				if err != nil {
-					return
+					return remoteAddr, err
 				}
 				pxy.closeFuncs = append(pxy.closeFuncs, func() {
 					pxy.rc.HTTPReverseProxy.UnRegister(tmpRouteConfig)
@@ -124,7 +124,7 @@ func (pxy *HTTPProxy) Run() (remoteAddr string, err error) {
 			if pxy.cfg.LoadBalancer.Group != "" {
 				err = pxy.rc.HTTPGroupCtl.Register(pxy.name, pxy.cfg.LoadBalancer.Group, pxy.cfg.LoadBalancer.GroupKey, routeConfig)
 				if err != nil {
-					return
+					return remoteAddr, err
 				}
 
 				pxy.closeFuncs = append(pxy.closeFuncs, func() {
@@ -133,7 +133,7 @@ func (pxy *HTTPProxy) Run() (remoteAddr string, err error) {
 			} else {
 				err = pxy.rc.HTTPReverseProxy.Register(routeConfig)
 				if err != nil {
-					return
+					return remoteAddr, err
 				}
 				pxy.closeFuncs = append(pxy.closeFuncs, func() {
 					pxy.rc.HTTPReverseProxy.UnRegister(tmpRouteConfig)
@@ -146,7 +146,7 @@ func (pxy *HTTPProxy) Run() (remoteAddr string, err error) {
 		}
 	}
 	remoteAddr = strings.Join(addrs, ",")
-	return
+	return remoteAddr, err
 }
 
 func (pxy *HTTPProxy) GetRealConn(remoteAddr string) (workConn net.Conn, err error) {
@@ -160,7 +160,7 @@ func (pxy *HTTPProxy) GetRealConn(remoteAddr string) (workConn net.Conn, err err
 	tmpConn, errRet := pxy.GetWorkConnFromPool(rAddr, nil)
 	if errRet != nil {
 		err = errRet
-		return
+		return workConn, err
 	}
 
 	var rwc io.ReadWriteCloser = tmpConn
@@ -168,7 +168,7 @@ func (pxy *HTTPProxy) GetRealConn(remoteAddr string) (workConn net.Conn, err err
 		rwc, err = libio.WithEncryption(rwc, []byte(pxy.serverCfg.Auth.Token))
 		if err != nil {
 			xl.Errorf("create encryption stream error: %v", err)
-			return
+			return workConn, err
 		}
 	}
 	if pxy.cfg.Transport.UseCompression {
@@ -184,7 +184,7 @@ func (pxy *HTTPProxy) GetRealConn(remoteAddr string) (workConn net.Conn, err err
 	workConn = netpkg.WrapReadWriteCloserToConn(rwc, tmpConn)
 	workConn = netpkg.WrapStatsConn(workConn, pxy.updateStatsAfterClosedConn)
 	metrics.Server.OpenConnection(pxy.GetName(), pxy.GetConfigurer().GetBaseConfig().Type)
-	return
+	return workConn, err
 }
 
 func (pxy *HTTPProxy) updateStatsAfterClosedConn(totalRead, totalWrite int64) {

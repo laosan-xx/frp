@@ -37,7 +37,7 @@ func NewUDPPacket(buf []byte, laddr, raddr *net.UDPAddr) *msg.UDPPacket {
 
 func GetContent(m *msg.UDPPacket) (buf []byte, err error) {
 	buf, err = base64.StdEncoding.DecodeString(m.Content)
-	return
+	return buf, err
 }
 
 func ForwardUserConn(udpConn *net.UDPConn, readCh <-chan *msg.UDPPacket, sendCh chan<- *msg.UDPPacket, bufSize int) {

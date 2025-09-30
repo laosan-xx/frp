@@ -67,7 +67,7 @@ func (sv *SUDPVisitor) Run() (err error) {
 	go sv.dispatcher()
 	go udp.ForwardUserConn(sv.udpConn, sv.readCh, sv.sendCh, int(sv.clientCfg.UDPPacketSize))
 
-	return
+	return err
 }
 
 func (sv *SUDPVisitor) dispatcher() {

@@ -62,7 +62,7 @@ func (pxy *HTTPSProxy) Run() (remoteAddr string, err error) {
 		l, errRet := pxy.rc.VhostHTTPSMuxer.Listen(pxy.ctx, routeConfig)
 		if errRet != nil {
 			err = errRet
-			return
+			return remoteAddr, err
 		}
 		xl.Infof("https proxy listen for host [%s]", routeConfig.Domain)
 		pxy.listeners = append(pxy.listeners, l)
@@ -74,7 +74,7 @@ func (pxy *HTTPSProxy) Run() (remoteAddr string, err error) {
 		l, errRet := pxy.rc.VhostHTTPSMuxer.Listen(pxy.ctx, routeConfig)
 		if errRet != nil {
 			err = errRet
-			return
+			return remoteAddr, err
 		}
 		xl.Infof("https proxy listen for host [%s]", routeConfig.Domain)
 		pxy.listeners = append(pxy.listeners, l)
@@ -83,7 +83,7 @@ func (pxy *HTTPSProxy) Run() (remoteAddr string, err error) {
 
 	pxy.startCommonTCPListenersHandler()
 	remoteAddr = strings.Join(addrs, ",")
-	return
+	return remoteAddr, err
 }
 
 func (pxy *HTTPSProxy) Close() {

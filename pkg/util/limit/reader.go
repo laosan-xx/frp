@@ -40,12 +40,12 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	}
 	n, err = r.r.Read(p)
 	if err != nil {
-		return
+		return n, err
 	}
 
 	err = r.limiter.WaitN(context.Background(), n)
 	if err != nil {
-		return
+		return n, err
 	}
-	return
+	return n, err
 }

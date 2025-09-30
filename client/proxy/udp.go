@@ -65,9 +65,9 @@ func NewUDPProxy(baseProxy *BaseProxy, cfg v1.ProxyConfigurer) Proxy {
 func (pxy *UDPProxy) Run() (err error) {
 	pxy.localAddr, err = net.ResolveUDPAddr("udp", net.JoinHostPort(pxy.cfg.LocalIP, strconv.Itoa(pxy.cfg.LocalPort)))
 	if err != nil {
-		return
+		return err
 	}
-	return
+	return err
 }
 
 func (pxy *UDPProxy) Close() {

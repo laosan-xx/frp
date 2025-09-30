@@ -290,7 +290,7 @@ func (svr *Service) getProxyStatsByType(proxyType string) (proxyInfos []*ProxySt
 		proxyInfo.LastCloseTime = ps.LastCloseTime
 		proxyInfos = append(proxyInfos, proxyInfo)
 	}
-	return
+	return proxyInfos
 }
 
 // Get proxy info by name.
@@ -344,14 +344,14 @@ func (svr *Service) getProxyStatsByTypeAndName(proxyType string, proxyName strin
 				log.Warnf("marshal proxy [%s] conf info error: %v", ps.Name, err)
 				code = 400
 				msg = "parse conf error"
-				return
+				return proxyInfo, code, msg
 			}
 			proxyInfo.Conf = getConfByType(ps.Type)
 			if err = json.Unmarshal(content, &proxyInfo.Conf); err != nil {
 				log.Warnf("unmarshal proxy [%s] conf info error: %v", ps.Name, err)
 				code = 400
 				msg = "parse conf error"
-				return
+				return proxyInfo, code, msg
 			}
 			proxyInfo.Status = "online"
 		} else {
@@ -365,7 +365,7 @@ func (svr *Service) getProxyStatsByTypeAndName(proxyType string, proxyName strin
 		code = 200
 	}
 
-	return
+	return proxyInfo, code, msg
 }
 
 // /api/traffic/:name
@@ -461,14 +461,14 @@ func (svr *Service) apiLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "authentication not configured", http.StatusUnauthorized)
 		return
 	}
-	
+
 	// 验证用户名和密码（使用 SHA256 比较）
 	expectedPasswordHash := sha256Hash(svr.cfg.WebServer.Password)
 	if req.Username != svr.cfg.WebServer.User || req.Password != expectedPasswordHash {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
-	
+
 	if svr.sessionMgr != nil {
 		_ = svr.sessionMgr.Issue(w, req.Username)
 	}

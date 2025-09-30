@@ -40,13 +40,13 @@ func NewUnixDomainSocketPlugin(_ PluginContext, options v1.ClientPluginOptions) 
 	unixAddr, errRet := net.ResolveUnixAddr("unix", opts.UnixPath)
 	if errRet != nil {
 		err = errRet
-		return
+		return p, err
 	}
 
 	p = &UnixDomainSocketPlugin{
 		UnixAddr: unixAddr,
 	}
-	return
+	return p, err
 }
 
 func (uds *UnixDomainSocketPlugin) Handle(ctx context.Context, connInfo *ConnectionInfo) {

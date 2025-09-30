@@ -257,7 +257,7 @@ func (m *serverMetrics) GetProxiesByTypeAndName(proxyType string, proxyName stri
 		}
 		break
 	}
-	return
+	return res
 }
 
 func (m *serverMetrics) GetProxyTraffic(name string) (res *ProxyTrafficInfo) {
@@ -272,5 +272,5 @@ func (m *serverMetrics) GetProxyTraffic(name string) (res *ProxyTrafficInfo) {
 		res.TrafficIn = proxyStats.TrafficIn.GetLastDaysCount(ReserveDays)
 		res.TrafficOut = proxyStats.TrafficOut.GetLastDaysCount(ReserveDays)
 	}
-	return
+	return res
 }

@@ -53,7 +53,7 @@ func (pxy *TCPProxy) Run() (remoteAddr string, err error) {
 			pxy.serverCfg.ProxyBindAddr, pxy.cfg.RemotePort)
 		if errRet != nil {
 			err = errRet
-			return
+			return remoteAddr, err
 		}
 		defer func() {
 			if err != nil {
@@ -66,7 +66,7 @@ func (pxy *TCPProxy) Run() (remoteAddr string, err error) {
 	} else {
 		pxy.realBindPort, err = pxy.rc.TCPPortManager.Acquire(pxy.name, pxy.cfg.RemotePort)
 		if err != nil {
-			return
+			return remoteAddr, err
 		}
 		defer func() {
 			if err != nil {
@@ -76,7 +76,7 @@ func (pxy *TCPProxy) Run() (remoteAddr string, err error) {
 		listener, errRet := net.Listen("tcp", net.JoinHostPort(pxy.serverCfg.ProxyBindAddr, strconv.Itoa(pxy.realBindPort)))
 		if errRet != nil {
 			err = errRet
-			return
+			return remoteAddr, err
 		}
 		pxy.listeners = append(pxy.listeners, listener)
 		xl.Infof("tcp proxy listen port [%d]", pxy.cfg.RemotePort)
@@ -85,7 +85,7 @@ func (pxy *TCPProxy) Run() (remoteAddr string, err error) {
 	pxy.cfg.RemotePort = pxy.realBindPort
 	remoteAddr = fmt.Sprintf(":%d", pxy.realBindPort)
 	pxy.startCommonTCPListenersHandler()
-	return
+	return remoteAddr, err
 }
 
 func (pxy *TCPProxy) Close() {

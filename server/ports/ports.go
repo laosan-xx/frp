@@ -93,7 +93,7 @@ func (pm *Manager) Acquire(name string, port int) (realPort int, err error) {
 				pm.usedPorts[realPort] = portCtx
 				pm.reservedPorts[name] = portCtx
 				delete(pm.freePorts, realPort)
-				return
+				return realPort, err
 			}
 		}
 	}
@@ -137,7 +137,7 @@ func (pm *Manager) Acquire(name string, port int) (realPort int, err error) {
 			}
 		}
 	}
-	return
+	return realPort, err
 }
 
 func (pm *Manager) isPortAvailable(port int) bool {

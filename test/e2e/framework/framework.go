@@ -197,14 +197,14 @@ func (f *Framework) genPortsFromTemplates(templates []string) (ports map[string]
 		}
 		ports[name] = port
 	}
-	return
+	return ports, err
 }
 
 // RenderTemplates alloc all ports for port names placeholder.
 func (f *Framework) RenderTemplates(templates []string) (outs []string, ports map[string]int, err error) {
 	ports, err = f.genPortsFromTemplates(templates)
 	if err != nil {
-		return
+		return outs, ports, err
 	}
 
 	params := f.mockServers.GetTemplateParams()
@@ -227,7 +227,7 @@ func (f *Framework) RenderTemplates(templates []string) (outs []string, ports ma
 		}
 		outs = append(outs, buffer.String())
 	}
-	return
+	return outs, ports, err
 }
 
 func (f *Framework) PortByName(name string) int {

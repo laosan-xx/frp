@@ -47,7 +47,7 @@ func NewSocks5Plugin(_ PluginContext, options v1.ClientPluginOptions) (p Plugin,
 	sp := &Socks5Plugin{}
 	sp.Server, err = gosocks5.New(cfg)
 	p = sp
-	return
+	return p, err
 }
 
 func (sp *Socks5Plugin) Handle(_ context.Context, connInfo *ConnectionInfo) {
