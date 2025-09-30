@@ -30,7 +30,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:7500', // 替换成你自己的frp服务地址
+        target: 'http://localhost:7000', // 替换成你自己的frp服务地址
         changeOrigin: true,
       },
     },

@@ -236,7 +236,7 @@ const fetchData = () => {
     })
     .catch((err) => {
       // 只有不是 401（未授权）时才提示
-      if (!(err && err.status === 401)) {
+      if (JSON.stringify(err) !== '{}') {
         ElMessage({
           showClose: true,
           message: '从 frps 获取服务器信息失败！',

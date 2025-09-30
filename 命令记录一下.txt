@@ -4,3 +4,6 @@ go build -o bin/frps.exe ./cmd/frps && taskkill //F //IM frps.exe
 
 cd web/frps
 npm run dev
+
+
+./golangci-lint run --fix
