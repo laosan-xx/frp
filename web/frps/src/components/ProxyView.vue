@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="proxy-view-container">
     <el-page-header :icon="null" style="margin-bottom: 10px">
       <template #title>
         <span>{{ proxyType }}</span>
@@ -30,16 +30,31 @@
     </div>
 
     <el-table
-      :data="proxies"
+      :data="filteredProxies"
       :default-sort="{ prop: 'name', order: 'ascending' }"
       style="width: 100%"
+      class="proxy-table"
+      :max-height="tableMaxHeight"
     >
       <el-table-column type="expand" width="30px">
-        <template #default="props">
-          <ProxyViewExpand :row="props.row" :proxyType="proxyType" />
+        <template #default="expandProps">
+          <ProxyViewExpand :row="expandProps.row" :proxyType="proxyType" />
         </template>
       </el-table-column>
-      <el-table-column label="名称" prop="name" sortable min-width="130px">
+      <el-table-column label="名称" prop="name" min-width="130px">
+        <template #header>
+          <div class="name-filter-header">
+            <span>名称</span>
+            <el-input
+              v-model="nameFilter"
+              size="small"
+              placeholder="筛选"
+              clearable
+              class="name-filter-input"
+              @click.stop
+            />
+          </div>
+        </template>
       </el-table-column>
       <el-table-column label="端口" prop="port" sortable min-width="80px">
         <template #default="scope">
@@ -111,16 +126,53 @@
 import type { BaseProxy } from '../utils/proxy.js'
 import { ElMessage } from 'element-plus'
 import ProxyViewExpand from './ProxyViewExpand.vue'
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useBreakpoints } from '../utils/breakpoints'
+import { pinyin } from 'pinyin-pro'
 
-defineProps<{
+const props = defineProps<{
   proxies: BaseProxy[]
   proxyType: string
   loading?: boolean
 }>()
 
 const emit = defineEmits(['refresh'])
+
+// 动态计算表格最大高度
+const windowHeight = ref(window.innerHeight)
+const updateWindowHeight = () => {
+  windowHeight.value = window.innerHeight
+}
+onMounted(() => {
+  window.addEventListener('resize', updateWindowHeight)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', updateWindowHeight)
+})
+
+// 计算表格最大高度：窗口高度 - header(64) - app-main padding(32) - content-container padding(48) - page-header(52) - 额外边距(20)
+const tableMaxHeight = computed(() => {
+  return windowHeight.value - 64 - 32 - 48 - 46
+})
+
+// 获取字符串的拼音首字母
+const getPinyinInitials = (str: string): string => {
+  return pinyin(str, { pattern: 'first', toneType: 'none' }).replace(/\s/g, '')
+}
+
+// 名称筛选（支持名称匹配和拼音首字母匹配）
+const nameFilter = ref('')
+const filteredProxies = computed(() => {
+  if (!nameFilter.value) {
+    return props.proxies
+  }
+  const keyword = nameFilter.value.toLowerCase()
+  return props.proxies.filter((proxy) => {
+    const name = proxy.name.toLowerCase()
+    const initials = getPinyinInitials(proxy.name).toLowerCase()
+    return name.includes(keyword) || initials.includes(keyword)
+  })
+})
 
 const dialogVisible = ref(false)
 const dialogVisibleName = ref('')
@@ -160,11 +212,7 @@ const clearOfflineProxies = () => {
         emit('refresh')
       } else {
         ElMessage({
-          message:
-            '清除离线代理失败：' +
-            res.status +
-            ' ' +
-            res.statusText,
+          message: '清除离线代理失败：' + res.status + ' ' + res.statusText,
           type: 'warning',
         })
       }
@@ -179,6 +227,35 @@ const clearOfflineProxies = () => {
 </script>
 
 <style scoped>
+/* ProxyView 容器样式 - 限制最大高度 */
+.proxy-view-container {
+  display: flex;
+  flex-direction: column;
+  /* 64px header + 16px*2 app-main padding + 24px*2 content-container padding */
+  max-height: calc(100vh - 64px - 32px - 48px);
+  overflow: hidden;
+}
+
+.proxy-table {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 名称筛选器样式 */
+.name-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-filter-input {
+  width: 100px;
+}
+
+.name-filter-input :deep(.el-input__inner) {
+  height: 26px;
+}
+
 /* 页面头部样式 */
 .page-header {
   margin-bottom: 24px;

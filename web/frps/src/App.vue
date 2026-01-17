@@ -430,7 +430,9 @@ html.dark .submenu-item.is-active {
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  min-height: 600px;
+  /* 让内容区域高度自适应，支持子组件的高度限制 */
+  height: calc(100vh - 64px - 32px);
+  overflow: hidden;
 }
 
 /* 允许 Grid/Flex 子项在内容过宽时正常收缩 */
