@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import Login from '../views/Login.vue'
 import ClientConfigure from '../views/ClientConfigure.vue'
 import ProxyDetail from '../views/ProxyDetail.vue'
 import ProxyEdit from '../views/ProxyEdit.vue'
@@ -12,6 +13,12 @@ import { useProxyStore } from '../stores/proxy'
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
+    {
+      path: '/login',
+      name: 'Login',
+      component: Login,
+      meta: { layout: 'auth', public: true },
+    },
     {
       path: '/',
       redirect: '/proxies',
@@ -68,8 +75,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
-  if (!to.matched.some((record) => record.meta.requiresStore)) {
+// Route guard: public routes pass through, protected routes rely on
+// API 401 responses handled by the global fetch interceptor.
+router.beforeEach(async (to: any) => {
+  if (to.meta.public) {
+    return true
+  }
+
+  if (!to.matched.some((record: any) => record.meta.requiresStore)) {
     return true
   }
 

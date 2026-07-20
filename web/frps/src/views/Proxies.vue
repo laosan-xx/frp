@@ -3,17 +3,17 @@
     <div class="page-header">
       <div class="header-top">
         <div class="title-section">
-          <h1 class="page-title">Proxies</h1>
-          <p class="page-subtitle">View and manage all proxy configurations</p>
+          <h1 class="page-title">{{ $t('proxies.title') }}</h1>
+          <p class="page-subtitle">{{ $t('proxies.subtitle') }}</p>
         </div>
 
         <div class="actions-section">
           <ActionButton variant="outline" size="small" @click="refreshData">
-            Refresh
+            {{ $t('common.refresh') }}
           </ActionButton>
 
           <ActionButton variant="outline" size="small" danger @click="showClearDialog = true">
-            Clear Offline
+            {{ $t('proxies.clearOffline') }}
           </ActionButton>
         </div>
       </div>
@@ -22,7 +22,7 @@
         <div class="search-row">
           <el-input
             v-model="searchText"
-            placeholder="Search proxies..."
+            :placeholder="$t('proxies.searchPlaceholder')"
             :prefix-icon="Search"
             clearable
             class="main-search"
@@ -53,7 +53,7 @@
         />
       </div>
       <div v-else-if="!loading" class="empty-state">
-        <el-empty description="No proxies found" />
+        <el-empty :description="$t('proxies.noProxies')" />
       </div>
     </div>
 
@@ -71,9 +71,9 @@
 
     <ConfirmDialog
       v-model="showClearDialog"
-      title="Clear Offline"
-      message="Are you sure you want to clear all offline proxies?"
-      confirm-text="Clear"
+      :title="$t('proxies.clearOfflineTitle')"
+      :message="$t('proxies.clearOfflineMessage')"
+      :confirm-text="$t('proxies.clearOfflineConfirm')"
       danger
       @confirm="handleClearConfirm"
     />
@@ -85,6 +85,7 @@ import { ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElPagination } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import ActionButton from '@shared/components/ActionButton.vue'
 import ConfirmDialog from '@shared/components/ConfirmDialog.vue'
 import {
@@ -108,6 +109,7 @@ import type { ServerInfo } from '../types/server'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const proxyTypes = [
   { label: 'All', value: 'all' },
@@ -240,7 +242,7 @@ const fetchData = async (silent = false) => {
     if (seq !== requestSeq) return
     ElMessage({
       showClose: true,
-      message: 'Failed to fetch proxies: ' + error.message,
+      message: t('proxies.fetchFailed', { msg: error.message }),
       type: 'error',
     })
   } finally {
@@ -287,13 +289,13 @@ const clearOfflineProxies = async () => {
   try {
     await apiClearOfflineProxies()
     ElMessage({
-      message: 'Successfully cleared offline proxies',
+      message: t('proxies.clearSuccess'),
       type: 'success',
     })
     fetchData()
   } catch (err: any) {
     ElMessage({
-      message: 'Failed to clear offline proxies: ' + err.message,
+      message: t('proxies.clearFailed', { msg: err.message }),
       type: 'warning',
     })
   }

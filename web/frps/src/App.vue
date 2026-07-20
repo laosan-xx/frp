@@ -1,107 +1,142 @@
 <template>
   <div id="app">
-    <header class="header">
-      <div class="header-content">
-        <div class="brand-section">
-          <button
-            v-if="isMobile"
-            class="hamburger-btn"
-            @click="toggleSidebar"
-            aria-label="Toggle menu"
-          >
-            <span class="hamburger-icon">&#9776;</span>
-          </button>
-          <div class="logo-wrapper">
-            <LogoIcon class="logo-icon" />
+    <!-- Auth layout: only render route content (login page) -->
+    <template v-if="route.meta.layout === 'auth'">
+      <router-view></router-view>
+    </template>
+
+    <!-- Normal layout -->
+    <template v-else>
+      <header class="header">
+        <div class="header-content">
+          <div class="brand-section">
+            <button
+              v-if="isMobile"
+              class="hamburger-btn"
+              @click="toggleSidebar"
+              aria-label="Toggle menu"
+            >
+              <span class="hamburger-icon">&#9776;</span>
+            </button>
+            <div class="logo-wrapper">
+              <LogoIcon class="logo-icon" />
+            </div>
+            <span class="divider">/</span>
+            <span class="brand-name">Frp</span>
+            <span class="badge server-badge">{{ $t('nav.server') }}</span>
           </div>
-          <span class="divider">/</span>
-          <span class="brand-name">frp</span>
-          <span class="badge server-badge">Server</span>
-        </div>
 
-        <div class="header-controls">
-          <a
-            class="github-link"
-            href="https://github.com/fatedier/frp"
-            target="_blank"
-            aria-label="GitHub"
-          >
-            <GitHubIcon class="github-icon" />
-          </a>
-          <el-switch
-            v-model="isDark"
-            inline-prompt
-            :active-icon="Moon"
-            :inactive-icon="Sunny"
-            class="theme-switch"
-          />
+          <div class="header-controls">
+            <a
+              class="github-link"
+              href="https://github.com/fatedier/frp"
+              target="_blank"
+              aria-label="GitHub"
+            >
+              <GitHubIcon class="github-icon" />
+            </a>
+            <el-select
+              v-model="currentLocale"
+              size="small"
+              class="locale-select"
+              @change="onLocaleChange"
+            >
+              <el-option label="EN" value="en" />
+              <el-option label="中文" value="zh-CN" />
+            </el-select>
+            <el-switch
+              v-model="isDark"
+              inline-prompt
+              :active-icon="Moon"
+              :inactive-icon="Sunny"
+              class="theme-switch"
+            />
+            <el-button
+              class="logout-btn"
+              size="small"
+              @click="handleLogout"
+              :title="$t('app.logout')"
+            >
+              {{ $t('app.logout') }}
+            </el-button>
+          </div>
         </div>
+      </header>
+
+      <div class="layout">
+        <!-- Mobile overlay -->
+        <div
+          v-if="isMobile && sidebarOpen"
+          class="sidebar-overlay"
+          @click="closeSidebar"
+        />
+
+        <aside
+          class="sidebar"
+          :class="{ 'mobile-open': isMobile && sidebarOpen }"
+        >
+          <nav class="sidebar-nav">
+            <router-link
+              to="/"
+              class="sidebar-link"
+              :class="{ active: route.path === '/' }"
+              @click="closeSidebar"
+            >
+              {{ $t('nav.overview') }}
+            </router-link>
+            <router-link
+              to="/clients"
+              class="sidebar-link"
+              :class="{ active: route.path.startsWith('/clients') }"
+              @click="closeSidebar"
+            >
+              {{ $t('nav.clients') }}
+            </router-link>
+            <router-link
+              to="/proxies"
+              class="sidebar-link"
+              :class="{
+                active:
+                  route.path.startsWith('/proxies') ||
+                  route.path.startsWith('/proxy'),
+              }"
+              @click="closeSidebar"
+            >
+              {{ $t('nav.proxies') }}
+            </router-link>
+          </nav>
+        </aside>
+
+        <main id="content">
+          <router-view></router-view>
+        </main>
       </div>
-    </header>
-
-    <div class="layout">
-      <!-- Mobile overlay -->
-      <div
-        v-if="isMobile && sidebarOpen"
-        class="sidebar-overlay"
-        @click="closeSidebar"
-      />
-
-      <aside
-        class="sidebar"
-        :class="{ 'mobile-open': isMobile && sidebarOpen }"
-      >
-        <nav class="sidebar-nav">
-          <router-link
-            to="/"
-            class="sidebar-link"
-            :class="{ active: route.path === '/' }"
-            @click="closeSidebar"
-          >
-            Overview
-          </router-link>
-          <router-link
-            to="/clients"
-            class="sidebar-link"
-            :class="{ active: route.path.startsWith('/clients') }"
-            @click="closeSidebar"
-          >
-            Clients
-          </router-link>
-          <router-link
-            to="/proxies"
-            class="sidebar-link"
-            :class="{
-              active:
-                route.path.startsWith('/proxies') ||
-                route.path.startsWith('/proxy'),
-            }"
-            @click="closeSidebar"
-          >
-            Proxies
-          </router-link>
-        </nav>
-      </aside>
-
-      <main id="content">
-        <router-view></router-view>
-      </main>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
 import { Moon, Sunny } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import GitHubIcon from './assets/icons/github.svg?component'
 import LogoIcon from './assets/icons/logo.svg?component'
 import { useResponsive } from './composables/useResponsive'
+import { setLocale, getLocale } from './locales'
 
 const route = useRoute()
+const router = useRouter()
 const isDark = useDark()
 const { isMobile } = useResponsive()
+const { t } = useI18n()
+
+const currentLocale = ref(getLocale())
+const onLocaleChange = (locale: string) => {
+  setLocale(locale)
+}
 
 const sidebarOpen = ref(false)
 
@@ -122,6 +157,27 @@ watch(
     }
   },
 )
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm(t('app.logoutConfirm'), t('app.logoutConfirmTitle'), {
+      confirmButtonText: t('common.yes'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+    })
+    const response = await fetch('/api/logout', { method: 'POST' })
+    if (response.ok) {
+      ElMessage.success(t('app.loggedOut'))
+      router.push('/login')
+    } else {
+      ElMessage.error(t('app.logoutFailed'))
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(t('app.logoutError'))
+    }
+  }
+}
 </script>
 
 <style>
@@ -246,6 +302,18 @@ html.dark .badge.server-badge {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.logout-btn {
+  font-size: 12px;
+}
+
+.locale-select {
+  width: 76px;
+}
+
+.locale-select :deep(.el-input__wrapper) {
+  border-radius: 6px;
 }
 
 .github-link {

@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import Login from '../views/Login.vue'
 import ServerOverview from '../views/ServerOverview.vue'
 import Clients from '../views/Clients.vue'
 import ClientDetail from '../views/ClientDetail.vue'
@@ -11,6 +12,12 @@ const router = createRouter({
     return { top: 0 }
   },
   routes: [
+    {
+      path: '/login',
+      name: 'Login',
+      component: Login,
+      meta: { layout: 'auth', public: true },
+    },
     {
       path: '/',
       name: 'ServerOverview',
@@ -37,6 +44,16 @@ const router = createRouter({
       component: ProxyDetail,
     },
   ],
+})
+
+// Route guard: public routes pass through, protected routes rely on
+// API 401 responses handled by the global fetch interceptor.
+router.beforeEach((to: any, _: any, next: any) => {
+  if (to.meta.public) {
+    next()
+    return
+  }
+  next()
 })
 
 export default router

@@ -154,6 +154,9 @@ type Service struct {
 
 	connectorCreator func(context.Context, *v1.ClientCommonConfig) Connector
 	handleWorkConnCb func(*v1.ProxyBaseConfig, net.Conn, *msg.StartWorkConn) bool
+
+	// dashboard session manager
+	sessionMgr *netpkg.SessionManager
 }
 
 func NewService(options ServiceOptions) (*Service, error) {
@@ -211,7 +214,10 @@ func NewService(options ServiceOptions) (*Service, error) {
 	}
 
 	if webServer != nil {
-		webServer.RouteRegister(s.registerRouteHandlers)
+		webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
+			s.sessionMgr = helper.SessionManager
+			s.registerRouteHandlers(helper)
+		})
 	}
 	if options.Common.VirtualNet.Address != "" {
 		s.vnetController = vnet.NewController(options.Common.VirtualNet)

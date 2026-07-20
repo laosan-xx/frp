@@ -1,5 +1,12 @@
 <template>
   <div id="app">
+    <!-- Auth layout: only render route content (login page) -->
+    <template v-if="route.meta.layout === 'auth'">
+      <router-view></router-view>
+    </template>
+
+    <!-- Normal layout -->
+    <template v-else>
     <header class="header">
       <div class="header-content">
         <div class="brand-section">
@@ -30,6 +37,14 @@
             :inactive-icon="Sunny"
             class="theme-switch"
           />
+          <el-button
+            class="logout-btn"
+            size="small"
+            @click="handleLogout"
+            title="Logout"
+          >
+            Logout
+          </el-button>
         </div>
       </div>
     </header>
@@ -75,19 +90,22 @@
         <router-view></router-view>
       </main>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
 import { Moon, Sunny } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import GitHubIcon from './assets/icons/github.svg?component'
 import LogoIcon from './assets/icons/logo.svg?component'
 import { useResponsive } from './composables/useResponsive'
 
 const route = useRoute()
+const router = useRouter()
 const isDark = useDark()
 const { isMobile } = useResponsive()
 
@@ -107,6 +125,27 @@ watch(() => route.path, () => {
     closeSidebar()
   }
 })
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('Are you sure you want to logout?', 'Confirm', {
+      confirmButtonText: 'Yes',
+      cancelButtonText: 'Cancel',
+      type: 'warning',
+    })
+    const response = await fetch('/api/logout', { method: 'POST' })
+    if (response.ok) {
+      ElMessage.success('Logged out')
+      router.push('/login')
+    } else {
+      ElMessage.error('Logout failed')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Logout error')
+    }
+  }
+}
 </script>
 
 <style lang="scss">
