@@ -11,6 +11,7 @@ export default {
     loading: 'Loading...',
     noLimit: 'no limit',
     yes: 'Yes',
+    copied: 'Copied to clipboard',
   },
   nav: {
     overview: 'Overview',
@@ -84,6 +85,9 @@ export default {
     noClients: 'No clients found',
     fetchFailed: 'Failed to fetch clients: {msg}',
   },
+  client: {
+    region: 'Region',
+  },
   clientDetail: {
     connections: 'Connections',
     runId: 'Run ID',
@@ -145,5 +149,13 @@ export default {
     trafficOut: 'Traffic Out',
     noData: 'No traffic data',
     fetchFailed: 'Get traffic info failed! {msg}',
+  },
+  timeAgo: {
+    years: '{n} years ago',
+    months: '{n} months ago',
+    days: '{n} days ago',
+    hours: '{n} hours ago',
+    minutes: '{n} minutes ago',
+    seconds: '{n} seconds ago',
   },
 }

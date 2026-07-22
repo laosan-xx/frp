@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -47,10 +48,8 @@ func isStaticFileRequest(path string) bool {
 	}
 	ext := strings.ToLower(filepath.Ext(path))
 	staticExts := []string{".html", ".css", ".js", ".ico", ".png", ".jpg", ".gif", ".svg", ".woff", ".woff2", ".ttf", ".eot"}
-	for _, staticExt := range staticExts {
-		if ext == staticExt {
-			return true
-		}
+	if slices.Contains(staticExts, ext) {
+		return true
 	}
 	return false
 }

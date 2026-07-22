@@ -1,22 +1,27 @@
+import i18n from '../locales'
+
+const t = (key: string, params: Record<string, unknown> = {}) =>
+  i18n.global.t(key, params)
+
 export function formatDistanceToNow(date: Date): string {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
 
   let interval = seconds / 31536000
-  if (interval > 1) return Math.floor(interval) + ' years ago'
+  if (interval > 1) return t('timeAgo.years', { n: Math.floor(interval) })
 
   interval = seconds / 2592000
-  if (interval > 1) return Math.floor(interval) + ' months ago'
+  if (interval > 1) return t('timeAgo.months', { n: Math.floor(interval) })
 
   interval = seconds / 86400
-  if (interval > 1) return Math.floor(interval) + ' days ago'
+  if (interval > 1) return t('timeAgo.days', { n: Math.floor(interval) })
 
   interval = seconds / 3600
-  if (interval > 1) return Math.floor(interval) + ' hours ago'
+  if (interval > 1) return t('timeAgo.hours', { n: Math.floor(interval) })
 
   interval = seconds / 60
-  if (interval > 1) return Math.floor(interval) + ' minutes ago'
+  if (interval > 1) return t('timeAgo.minutes', { n: Math.floor(interval) })
 
-  return Math.floor(seconds) + ' seconds ago'
+  return t('timeAgo.seconds', { n: Math.floor(seconds) })
 }
 
 export function formatUnixSeconds(seconds?: number): string {

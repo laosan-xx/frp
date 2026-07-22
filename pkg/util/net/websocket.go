@@ -15,6 +15,26 @@ const (
 	FrpWebsocketPath = "/~!frp"
 )
 
+// wsRealAddrConn wraps a net.Conn to override RemoteAddr with the real
+// TCP remote address. The golang.org/x/net/websocket package returns the
+// WebSocket Origin header from RemoteAddr() on server-side connections,
+// which is not the actual client IP. This wrapper fixes that by using the
+// underlying HTTP request's RemoteAddr.
+type wsRealAddrConn struct {
+	net.Conn
+	realAddr net.Addr
+}
+
+func (c *wsRealAddrConn) RemoteAddr() net.Addr {
+	return c.realAddr
+}
+
+// httpRemoteAddr wraps the HTTP request's RemoteAddr string as a net.Addr.
+type httpRemoteAddr string
+
+func (a httpRemoteAddr) Network() string { return "tcp" }
+func (a httpRemoteAddr) String() string  { return string(a) }
+
 type WebsocketListener struct {
 	ln       net.Listener
 	acceptCh chan net.Conn
@@ -37,11 +57,20 @@ func NewWebsocketListener(ln net.Listener) (wl *WebsocketListener) {
 		// (e.g. API gateways/reverse proxies) UTF-8-validate the default text
 		// frames and close the connection on invalid bytes.
 		c.PayloadType = websocket.BinaryFrame
+
+		// websocket.Conn.RemoteAddr() returns the WebSocket Origin header
+		// (e.g. "http://host:port") on server-side connections, not the real
+		// TCP client address. Use the HTTP request's RemoteAddr instead.
+		var conn net.Conn = c
+		if req := c.Request(); req != nil && req.RemoteAddr != "" {
+			conn = &wsRealAddrConn{Conn: c, realAddr: httpRemoteAddr(req.RemoteAddr)}
+		}
+
 		notifyCh := make(chan struct{})
-		conn := WrapCloseNotifyConn(c, func(_ error) {
+		wrapped := WrapCloseNotifyConn(conn, func(_ error) {
 			close(notifyCh)
 		})
-		wl.acceptCh <- conn
+		wl.acceptCh <- wrapped
 		<-notifyCh
 	}))
 

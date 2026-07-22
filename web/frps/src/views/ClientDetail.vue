@@ -1,5 +1,11 @@
 <template>
   <div class="client-detail-page">
+    <!-- Animated background orbs (mobile) -->
+    <div v-if="isMobile" class="m-bg-orbs">
+      <div class="m-orb m-orb-1"></div>
+      <div class="m-orb m-orb-2"></div>
+    </div>
+
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
       <a class="breadcrumb-link" @click="goBack">
@@ -8,7 +14,7 @@
       <router-link to="/clients" class="breadcrumb-item">{{ $t('nav.clients') }}</router-link>
       <span class="breadcrumb-separator">/</span>
       <span class="breadcrumb-current">{{
-        client?.displayName || route.params.key
+        client?.displayName || (loading ? $t('common.loading') : route.params.key)
       }}</span>
     </nav>
 
@@ -35,6 +41,9 @@
                   <span v-if="client.ip" class="meta-item">{{
                     client.ip
                   }}</span>
+                  <span v-if="client.ipRegion" class="meta-item">{{
+                    client.ipRegion
+                  }}</span>
                   <span v-if="client.hostname" class="meta-item">{{
                     client.hostname
                   }}</span>
@@ -57,10 +66,10 @@
               <span class="info-label">{{ $t('clientDetail.connections') }}</span>
               <span class="info-value">{{ client.status.curConns }}</span>
             </div>
-            <div class="info-item">
+            <!-- <div class="info-item">
               <span class="info-label">{{ $t('clientDetail.runId') }}</span>
               <span class="info-value">{{ client.runID }}</span>
-            </div>
+            </div> -->
             <div v-if="client.wireProtocol" class="info-item">
               <span class="info-label">{{ $t('clientDetail.protocol') }}</span>
               <span class="info-value">{{ client.wireProtocol }}</span>
@@ -121,7 +130,9 @@
               :page-size="pageSize"
               :page-sizes="[10, 20, 50, 100]"
               :total="total"
-              layout="total, sizes, prev, pager, next"
+              :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next'"
+              :size="isMobile ? 'small' : 'default'"
+              :pager-count="isMobile ? 5 : 7"
               @current-change="onPageChange"
               @size-change="onPageSizeChange"
             />
@@ -146,6 +157,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElPagination } from 'element-plus'
 import { ArrowLeft, Loading, Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
 import { getClientV2 } from '../api/client'
 import { getProxiesV2 } from '../api/proxy'
@@ -167,6 +179,7 @@ import type { ServerInfo } from '../types/server'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { isMobile } = useResponsive()
 const client = ref<Client | null>(null)
 const loading = ref(true)
 
@@ -473,6 +486,7 @@ onMounted(async () => {
   gap: 12px;
   font-size: 14px;
   color: var(--text-secondary);
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -495,6 +509,10 @@ onMounted(async () => {
 html.dark .status-badge.online {
   background: rgba(34, 197, 94, 0.15);
   color: #4ade80;
+}
+
+.header-right{
+  white-space: nowrap;
 }
 
 /* Info Section */
@@ -621,14 +639,209 @@ html.dark .status-badge.online {
 }
 
 /* Responsive */
-@media (max-width: 640px) {
-  .header-main {
-    flex-direction: column;
-    gap: 16px;
+
+/* ===== Mobile animations & effects ===== */
+@keyframes m-float-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(10px, -15px) scale(1.04); }
+  66% { transform: translate(-8px, 8px) scale(0.96); }
+}
+
+@keyframes m-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes m-slide-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes m-avatar-glow {
+  0%, 100% { box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3); }
+  50% { box-shadow: 0 4px 18px rgba(102, 126, 234, 0.5); }
+}
+
+@keyframes m-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.m-bg-orbs {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 260px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.m-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: m-float-orb 9s ease-in-out infinite;
+}
+
+.m-orb-1 {
+  width: 150px;
+  height: 150px;
+  top: -30px;
+  right: -20px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.2), transparent 70%);
+}
+
+.m-orb-2 {
+  width: 120px;
+  height: 120px;
+  top: 70px;
+  left: -30px;
+  background: radial-gradient(circle, rgba(118, 75, 162, 0.15), transparent 70%);
+  animation-delay: -4s;
+}
+
+html.dark .m-orb-1 {
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.15), transparent 70%);
+}
+
+html.dark .m-orb-2 {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.12), transparent 70%);
+}
+
+@media (max-width: 767px) {
+  .breadcrumb {
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
+    animation: m-slide-left 0.35s ease-out both;
   }
 
-  .header-right {
-    align-self: flex-start;
+  .header-card,
+  .proxies-card {
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04);
+  }
+
+  .header-card {
+    animation: m-fade-up 0.4s ease-out both;
+  }
+
+  .proxies-card {
+    animation: m-fade-up 0.4s ease-out 0.12s both;
+  }
+
+  html.dark .header-card,
+  html.dark .proxies-card {
+    background: rgba(39, 41, 61, 0.75);
+    border-color: rgba(52, 54, 77, 0.5);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.15);
+  }
+
+  .header-main {
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
+  .header-left {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .client-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    font-size: 15px;
+    animation: m-avatar-glow 3s ease-in-out infinite;
+  }
+
+  .client-name {
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .client-name-row {
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .client-name-row .el-tag {
+    display: none;
+  }
+
+  .client-meta {
+    font-size: 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .client-meta .meta-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-badge {
+    padding: 3px 8px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .status-badge.online {
+    animation: m-status-pulse 2.5s ease-in-out infinite;
+  }
+
+  .info-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--header-border);
+  }
+
+  .info-label {
+    font-size: 12px;
+  }
+
+  .info-value {
+    font-size: 12px;
+  }
+
+  .proxies-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .proxy-search {
+    width: 180px;
+    flex-shrink: 0;
+  }
+
+  .proxies-body {
+    padding: 10px;
+  }
+
+  .proxies-list {
+    gap: 8px;
+  }
+
+  .pagination-section {
+    padding: 0 14px 14px;
   }
 }
 </style>

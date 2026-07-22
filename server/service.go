@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -42,6 +43,7 @@ import (
 	"github.com/fatedier/frp/pkg/ssh"
 	"github.com/fatedier/frp/pkg/transport"
 	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/fatedier/frp/pkg/util/iplookup"
 	"github.com/fatedier/frp/pkg/util/log"
 	netpkg "github.com/fatedier/frp/pkg/util/net"
 	"github.com/fatedier/frp/pkg/util/tcpmux"
@@ -51,7 +53,6 @@ import (
 	"github.com/fatedier/frp/pkg/util/xlog"
 	"github.com/fatedier/frp/server/controller"
 	"github.com/fatedier/frp/server/group"
-	"github.com/fatedier/frp/server/metrics"
 	"github.com/fatedier/frp/server/ports"
 	"github.com/fatedier/frp/server/proxy"
 	"github.com/fatedier/frp/server/registry"
@@ -63,6 +64,8 @@ const (
 	connWriteTimeout      time.Duration = 5 * time.Second
 	vhostReadWriteTimeout time.Duration = 30 * time.Second
 )
+
+var errControlReplaced = errors.New("control was replaced during login")
 
 func init() {
 	crypto.DefaultSalt = "frp"
@@ -134,6 +137,9 @@ type Service struct {
 
 	// dashboard session manager
 	sessionMgr *netpkg.SessionManager
+
+	// IP geolocation lookup service
+	ipLookup *iplookup.LookupService
 }
 
 func NewService(cfg *v1.ServerConfig) (*Service, error) {
@@ -164,9 +170,10 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 		return nil, err
 	}
 
+	clientRegistry := registry.NewClientRegistry()
 	svr := &Service{
-		ctlManager:     NewControlManager(),
-		clientRegistry: registry.NewClientRegistry(),
+		ctlManager:     NewControlManager(clientRegistry),
+		clientRegistry: clientRegistry,
 		pxyManager:     proxy.NewManager(),
 		pluginManager:  plugin.NewManager(),
 		rc: &controller.ResourceController{
@@ -181,6 +188,7 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 		tlsConfig:         tlsConfig,
 		cfg:               cfg,
 		ctx:               context.Background(),
+		ipLookup:          iplookup.NewLookupService(),
 	}
 	if webServer != nil {
 		webServer.RouteRegister(func(helper *httppkg.RouterRegisterHelper) {
@@ -475,6 +483,9 @@ func (svr *Service) handleConnection(ctx context.Context, conn net.Conn, interna
 
 		if err != nil {
 			xl.Warnf("register control error: %v", err)
+			if ctl != nil {
+				svr.ctlManager.Remove(ctl)
+			}
 			if writeErr := writeWithDeadline(conn, connWriteTimeout, func() error {
 				return acceptedConn.conn.WriteMsg(&msg.LoginResp{
 					Version: version.Full(),
@@ -483,29 +494,28 @@ func (svr *Service) handleConnection(ctx context.Context, conn net.Conn, interna
 			}); writeErr != nil {
 				xl.Warnf("write login error response error: %v", writeErr)
 			}
-			conn.Close()
+			if ctl != nil {
+				_ = ctl.Close()
+			} else {
+				conn.Close()
+			}
 			return
 		}
-		if err = writeWithDeadline(conn, connWriteTimeout, func() error {
-			return acceptedConn.conn.WriteMsg(&msg.LoginResp{
-				Version: version.Full(),
-				RunID:   ctl.runID,
-				Error:   "",
+		if err = svr.completeControlLogin(ctl, func() error {
+			return writeWithDeadline(conn, connWriteTimeout, func() error {
+				return acceptedConn.conn.WriteMsg(&msg.LoginResp{
+					Version: version.Full(),
+					RunID:   ctl.runID,
+					Error:   "",
+				})
 			})
 		}); err != nil {
-			xl.Warnf("write login response error: %v", err)
-			svr.ctlManager.Del(m.RunID, ctl)
-			svr.clientRegistry.MarkOfflineByRunID(m.RunID)
-			conn.Close()
+			xl.Warnf("complete control login error: %v", err)
+			svr.ctlManager.Remove(ctl)
+			_ = ctl.Close()
 			return
 		}
-		ctl.Start()
-		metrics.Server.NewClient()
-		go func() {
-			// block until control closed
-			ctl.WaitClosed()
-			svr.ctlManager.Del(m.RunID, ctl)
-		}()
+		svr.asyncLookupClientIP(ctl)
 	case *msg.NewWorkConn:
 		if err := svr.RegisterWorkConn(acceptedConn.conn, m); err != nil {
 			_ = acceptedConn.conn.WriteMsg(&msg.StartWorkConn{
@@ -531,6 +541,58 @@ func (svr *Service) handleConnection(ctx context.Context, conn net.Conn, interna
 		log.Warnf("error message type for the new connection [%s]", conn.RemoteAddr().String())
 		conn.Close()
 	}
+}
+
+func (svr *Service) completeControlLogin(ctl *Control, writeSuccess func() error) error {
+	committed, err := svr.ctlManager.completeLogin(ctl, writeSuccess)
+	if err != nil {
+		return err
+	}
+	if !committed {
+		return errControlReplaced
+	}
+	return nil
+}
+
+// asyncLookupClientIP triggers an async IP geolocation lookup for the client
+// and updates the registry with the result.
+func (svr *Service) asyncLookupClientIP(ctl *Control) {
+	loginMsg := ctl.sessionCtx.LoginMsg
+	remoteAddr := ctl.sessionCtx.Conn.RemoteAddr().String()
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		remoteAddr = host
+	}
+	if remoteAddr == "" {
+		return
+	}
+
+	// Compute the registry key
+	effectiveID := loginMsg.ClientID
+	if effectiveID == "" {
+		effectiveID = ctl.runID
+	}
+	var key string
+	switch {
+	case loginMsg.User == "":
+		key = effectiveID
+	case effectiveID == "":
+		key = loginMsg.User
+	default:
+		key = fmt.Sprintf("%s.%s", loginMsg.User, effectiveID)
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(svr.ctx, 10*time.Second)
+		defer cancel()
+		result, err := svr.ipLookup.Lookup(ctx, remoteAddr)
+		if err != nil {
+			log.Tracef("ip lookup for %s failed: %v", remoteAddr, err)
+			return
+		}
+		if result.Location != "" || result.ISP != "" {
+			svr.clientRegistry.UpdateIPLocation(key, result.Location, result.ISP)
+		}
+	}()
 }
 
 type acceptedConnection struct {
@@ -774,16 +836,15 @@ func (svr *Service) RegisterControl(
 	}
 
 	ctl, err := NewControl(ctx, &SessionContext{
-		RC:             svr.rc,
-		PxyManager:     svr.pxyManager,
-		PluginManager:  svr.pluginManager,
-		AuthVerifier:   authVerifier,
-		EncryptionKey:  svr.auth.EncryptionKey(),
-		Conn:           ctlConn,
-		LoginMsg:       loginMsg,
-		ServerCfg:      svr.cfg,
-		ClientRegistry: svr.clientRegistry,
-		WireProtocol:   wireProtocol,
+		RC:            svr.rc,
+		PxyManager:    svr.pxyManager,
+		PluginManager: svr.pluginManager,
+		AuthVerifier:  authVerifier,
+		EncryptionKey: svr.auth.EncryptionKey(),
+		Conn:          ctlConn,
+		LoginMsg:      loginMsg,
+		ServerCfg:     svr.cfg,
+		WireProtocol:  wireProtocol,
 	})
 	if err != nil {
 		xl.Warnf("create new controller error: %v", err)
@@ -791,18 +852,17 @@ func (svr *Service) RegisterControl(
 		return nil, fmt.Errorf("unexpected error when creating new controller")
 	}
 
-	if oldCtl := svr.ctlManager.Add(loginMsg.RunID, ctl); oldCtl != nil {
-		oldCtl.WaitClosed()
+	if err := svr.ctlManager.Add(ctl); err != nil {
+		return ctl, err
 	}
+	ctl.WaitForHandoff()
 
-	remoteAddr := ctlConn.RemoteAddr().String()
-	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
-		remoteAddr = host
+	active, err := svr.ctlManager.Activate(ctl)
+	if err != nil {
+		return ctl, err
 	}
-	_, conflict := svr.clientRegistry.Register(loginMsg.User, loginMsg.ClientID, loginMsg.RunID, loginMsg.Hostname, loginMsg.Version, remoteAddr, wireProtocol)
-	if conflict {
-		svr.ctlManager.Del(loginMsg.RunID, ctl)
-		return nil, fmt.Errorf("client_id [%s] for user [%s] is already online", loginMsg.ClientID, loginMsg.User)
+	if !active {
+		return ctl, errControlReplaced
 	}
 
 	return ctl, nil
@@ -836,20 +896,25 @@ func (svr *Service) RegisterWorkConn(workConn *msg.Conn, newMsg *msg.NewWorkConn
 		xl.Warnf("invalid NewWorkConn with run id [%s]", newMsg.RunID)
 		return err
 	}
-	return ctl.RegisterWorkConn(proxy.NewWorkConn(workConn))
+	return svr.ctlManager.RegisterWorkConn(ctl, proxy.NewWorkConn(workConn))
 }
 
 func (svr *Service) RegisterVisitorConn(visitorConn net.Conn, newMsg *msg.NewVisitorConn, wireProtocol string) error {
-	visitorUser := ""
+	admit := func(visitorUser string) error {
+		return svr.rc.VisitorManager.NewConn(newMsg.ProxyName, visitorConn, newMsg.Timestamp, newMsg.SignKey,
+			newMsg.UseEncryption, newMsg.UseCompression, visitorUser, wireProtocol)
+	}
 	// TODO(deprecation): Compatible with old versions, can be without runID, user is empty. In later versions, it will be mandatory to include runID.
 	// If runID is required, it is not compatible with versions prior to v0.50.0.
 	if newMsg.RunID != "" {
-		ctl, exist := svr.ctlManager.GetByID(newMsg.RunID)
-		if !exist {
+		admitted, err := svr.ctlManager.admitVisitorByRunID(newMsg.RunID, admit)
+		if err != nil {
+			return err
+		}
+		if !admitted {
 			return fmt.Errorf("no client control found for run id [%s]", newMsg.RunID)
 		}
-		visitorUser = ctl.sessionCtx.LoginMsg.User
+		return nil
 	}
-	return svr.rc.VisitorManager.NewConn(newMsg.ProxyName, visitorConn, newMsg.Timestamp, newMsg.SignKey,
-		newMsg.UseEncryption, newMsg.UseCompression, visitorUser, wireProtocol)
+	return admit("")
 }

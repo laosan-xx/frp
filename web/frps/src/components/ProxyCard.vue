@@ -18,12 +18,12 @@
             <span class="meta-label">{{ $t('proxyCard.connections') }}</span>
             <span class="meta-value">{{ proxy.conns }}</span>
           </span>
-          <span class="meta-item" v-if="proxy.clientID">
+          <!-- <span class="meta-item" v-if="proxy.clientID">
             <span class="meta-label">{{ $t('proxyCard.client') }}</span>
             <span class="meta-value">{{
               proxy.user ? `${proxy.user}.${proxy.clientID}` : proxy.clientID
             }}</span>
-          </span>
+          </span> -->
         </div>
       </div>
 
@@ -53,7 +53,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { Top, Bottom } from '@element-plus/icons-vue'
 import { formatFileSize } from '../utils/format'
 import type { BaseProxy } from '../utils/proxy'
@@ -64,16 +63,8 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const route = useRoute()
 
-const proxyLink = computed(() => {
-  const base = `/proxy/${props.proxy.name}`
-  // If we're on a client detail page, pass client info
-  if (route.name === 'ClientDetail' && route.params.key) {
-    return `${base}?from=client&client=${route.params.key}`
-  }
-  return base
-})
+const proxyLink = computed(() => `/proxy/${props.proxy.name}`)
 </script>
 
 <style scoped>
@@ -221,24 +212,61 @@ const proxyLink = computed(() => {
 }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .card-main {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
+    padding: 10px 12px;
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .card-left {
+    gap: 8px;
+  }
+
+  .proxy-name {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-meta {
+    gap: 14px;
+    flex-wrap: nowrap;
+  }
+
+  .meta-item{
+    gap: 0;
+  }
+
+  .meta-label {
+    font-size: 11px;
+  }
+
+  .meta-value {
+    font-size: 11px;
   }
 
   .card-right {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid var(--el-border-color-lighter);
-    padding-top: 16px;
+    gap: 8px;
   }
 
   .traffic-stats {
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .traffic-value {
+    font-size: 10px;
+  }
+
+  .traffic-icon {
+    font-size: 10px;
+  }
+
+  .status-badge {
+    padding: 2px 6px;
+    font-size: 10px;
   }
 }
 </style>

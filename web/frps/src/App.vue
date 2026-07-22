@@ -7,6 +7,7 @@
 
     <!-- Normal layout -->
     <template v-else>
+      <el-config-provider :locale="elementLocale">
       <header class="header">
         <div class="header-content">
           <div class="brand-section">
@@ -111,17 +112,20 @@
           <router-view></router-view>
         </main>
       </div>
+      </el-config-provider>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDark } from '@vueuse/core'
 import { Moon, Sunny } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import en from 'element-plus/dist/locale/en.mjs'
 import GitHubIcon from './assets/icons/github.svg?component'
 import LogoIcon from './assets/icons/logo.svg?component'
 import { useResponsive } from './composables/useResponsive'
@@ -137,6 +141,8 @@ const currentLocale = ref(getLocale())
 const onLocaleChange = (locale: string) => {
   setLocale(locale)
 }
+
+const elementLocale = computed(() => (currentLocale.value === 'zh-CN' ? zhCn : en))
 
 const sidebarOpen = ref(false)
 
@@ -561,6 +567,23 @@ html.dark .el-switch {
 @media (max-width: 767px) {
   .header-content {
     padding: 0 16px;
+  }
+
+  .brand-section .divider,
+  .brand-section .badge {
+    display: none;
+  }
+
+  .header-controls {
+    gap: 10px;
+  }
+
+  .github-link {
+    display: none;
+  }
+
+  .locale-select {
+    width: 64px;
   }
 
   .sidebar {

@@ -58,6 +58,17 @@ class BaseProxy {
     this.multiplexer = ''
     this.routeByHTTPUser = ''
   }
+
+  get clientDisplayName(): string {
+    return this.user || this.clientID || ''
+  }
+
+  get clientKey(): string {
+    if (this.user && this.clientID) {
+      return `${this.user}.${this.clientID}`
+    }
+    return this.clientID || ''
+  }
 }
 
 class TCPProxy extends BaseProxy {

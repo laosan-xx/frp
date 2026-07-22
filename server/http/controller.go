@@ -292,6 +292,8 @@ func buildClientInfoResp(info registry.ClientInfo) model.ClientInfoResp {
 		WireProtocol:     info.WireProtocol,
 		Hostname:         info.Hostname,
 		ClientIP:         info.IP,
+		IPLocation:       info.IPLocation,
+		IPIsp:            info.IPIsp,
 		FirstConnectedAt: toUnix(info.FirstConnectedAt),
 		LastConnectedAt:  toUnix(info.LastConnectedAt),
 		Online:           info.Online,

@@ -2,7 +2,6 @@
   <el-card
     class="stat-card"
     :class="{ clickable: !!to }"
-    :body-style="{ padding: '20px' }"
     shadow="hover"
     @click="handleClick"
   >
@@ -72,6 +71,11 @@ const handleClick = () => {
   border-radius: 12px;
   transition: all 0.3s ease;
   border: 1px solid #e4e7ed;
+  height: 100%;
+}
+
+.stat-card :deep(.el-card__body) {
+  padding: 20px;
 }
 
 .stat-card.clickable {
@@ -198,5 +202,46 @@ html.dark .stat-label {
 html.dark .stat-subtitle {
   border-top-color: #3a3d5c;
   color: #9ca3af;
+}
+
+/* Mobile: compact card for 2x2 grid */
+@media (max-width: 767px) {
+  .stat-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .stat-card-content {
+    gap: 10px;
+  }
+
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+
+  .stat-icon .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  .arrow-icon {
+    display: none;
+  }
+
+  .stat-subtitle {
+    display: none;
+  }
 }
 </style>

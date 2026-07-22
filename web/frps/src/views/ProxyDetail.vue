@@ -5,27 +5,19 @@
       <a class="breadcrumb-link" @click="goBack">
         <el-icon><ArrowLeft /></el-icon>
       </a>
-      <template v-if="fromClient">
+      <template v-if="proxy && proxy.user">
         <router-link to="/clients" class="breadcrumb-item">{{ $t('nav.clients') }}</router-link>
         <span class="breadcrumb-separator">/</span>
-        <router-link :to="`/clients/${fromClient}`" class="breadcrumb-item">{{
-          fromClient
+        <router-link :to="`/clients/${proxy.clientKey}`" class="breadcrumb-item">{{
+          proxy.user
         }}</router-link>
         <span class="breadcrumb-separator">/</span>
       </template>
       <template v-else>
         <router-link to="/proxies" class="breadcrumb-item">{{ $t('nav.proxies') }}</router-link>
         <span class="breadcrumb-separator">/</span>
-        <router-link
-          v-if="proxy?.clientID"
-          :to="clientLink"
-          class="breadcrumb-item"
-        >
-          {{ proxy.user ? `${proxy.user}.${proxy.clientID}` : proxy.clientID }}
-        </router-link>
-        <span v-if="proxy?.clientID" class="breadcrumb-separator">/</span>
       </template>
-      <span class="breadcrumb-current">{{ proxyName }}</span>
+      <span class="breadcrumb-current">{{ proxyDisplayName }}</span>
     </nav>
 
     <div v-loading="loading" class="detail-content">
@@ -48,20 +40,16 @@
                 </span>
               </div>
               <div class="header-meta">
-                <router-link
+                <!-- <router-link
                   v-if="proxy.clientID"
                   :to="clientLink"
                   class="meta-link"
                 >
                   <el-icon><Monitor /></el-icon>
-                  <span>{{
-                    proxy.user
-                      ? `${proxy.user}.${proxy.clientID}`
-                      : proxy.clientID
-                  }}</span>
-                </router-link>
+                  <span>{{ proxy.clientDisplayName }}</span>
+                </router-link> -->
                 <span v-if="proxy.lastStartTime" class="meta-text">
-                  <span class="meta-sep">·</span>
+                  <!-- <span class="meta-sep">·</span> -->
                   {{ $t('proxyDetail.lastStarted') }} {{ proxy.lastStartTime }}
                 </span>
                 <span v-if="proxy.lastCloseTime" class="meta-text">
@@ -77,7 +65,7 @@
         <div class="stats-bar">
           <div v-if="proxy.port" class="stats-item">
             <span class="stats-label">{{ $t('proxyDetail.port') }}</span>
-            <span class="stats-value">{{ proxy.port }}</span>
+            <span class="stats-value stats-value-clickable" @click.stop="copyPort">{{ proxy.port }}</span>
           </div>
           <div class="stats-item">
             <span class="stats-label">{{ $t('proxyDetail.connections') }}</span>
@@ -122,13 +110,22 @@
               </div>
             </div>
 
-            <div v-if="proxy.customDomains" class="config-item-card">
+            <div v-if="proxy.customDomains.length" class="config-item-card">
               <div class="config-item-icon domains">
                 <el-icon><Link /></el-icon>
               </div>
               <div class="config-item-content">
                 <span class="config-item-label">{{ $t('proxyDetail.customDomains') }}</span>
-                <span class="config-item-value">{{ proxy.customDomains }}</span>
+                <span class="config-item-value domain-links">
+                  <a
+                    v-for="domain in proxy.customDomains"
+                    :key="domain"
+                    :href="`https://${domain}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="domain-link"
+                  >{{ domain }}</a>
+                </span>
               </div>
             </div>
 
@@ -138,7 +135,14 @@
               </div>
               <div class="config-item-content">
                 <span class="config-item-label">{{ $t('proxyDetail.subdomain') }}</span>
-                <span class="config-item-value">{{ proxy.subdomain }}</span>
+                <span class="config-item-value domain-links">
+                  <a
+                    :href="`https://${proxy.subdomain}`"
+                    target="_blank"
+                    rel="noopener"
+                    class="domain-link"
+                  >{{ proxy.subdomain }}</a>
+                </span>
               </div>
             </div>
 
@@ -230,7 +234,6 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft,
-  Monitor,
   Connection,
   Link,
   Lock,
@@ -261,11 +264,10 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const proxyName = computed(() => route.params.name as string)
-const fromClient = computed(() => {
-  if (route.query.from === 'client' && route.query.client) {
-    return route.query.client as string
-  }
-  return null
+const proxyDisplayName = computed(() => {
+  const name = proxyName.value
+  const idx = name.lastIndexOf('.')
+  return idx > 0 ? name.substring(idx + 1) : name
 })
 const proxy = ref<BaseProxy | null>(null)
 const loading = ref(true)
@@ -279,14 +281,6 @@ const goBack = () => {
 }
 
 let serverInfo: ServerInfo | null = null
-
-const clientLink = computed(() => {
-  if (!proxy.value) return ''
-  const key = proxy.value.user
-    ? `${proxy.value.user}.${proxy.value.clientID}`
-    : proxy.value.clientID
-  return `/clients/${key}`
-})
 
 const proxyIconConfig = computed(() => {
   const type = proxy.value?.type?.toLowerCase() || ''
@@ -408,6 +402,25 @@ const fetchProxy = async () => {
 onMounted(() => {
   fetchProxy()
 })
+
+function copyPort() {
+  if (!proxy.value?.port) return
+  const port = String(proxy.value.port)
+  navigator.clipboard.writeText(port).then(() => {
+    ElMessage.success(t('common.copied'))
+  }).catch(() => {
+    // fallback for older browsers
+    const textarea = document.createElement('textarea')
+    textarea.value = port
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success(t('common.copied'))
+  })
+}
 </script>
 
 <style scoped>
@@ -453,6 +466,10 @@ onMounted(() => {
 .breadcrumb-current {
   color: var(--text-primary);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50vw;
 }
 
 /* Header Section */
@@ -593,6 +610,17 @@ html.dark .status-badge.online {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
+  word-break: break-all;
+}
+
+.stats-value-clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.stats-value-clickable:hover {
+  color: var(--el-color-primary);
 }
 
 .stats-value small {
@@ -740,6 +768,23 @@ html.dark .config-item-icon.route {
   word-break: break-all;
 }
 
+.domain-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.domain-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.domain-link:hover {
+  color: var(--el-color-primary-light-3);
+  text-decoration: underline;
+}
+
 .annotations-section {
   display: flex;
   flex-wrap: wrap;
@@ -794,29 +839,149 @@ html.dark .config-item-icon.route {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .config-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 767px) {
+  .breadcrumb {
+    margin-bottom: 12px;
+  }
+
+  .header-section {
+    margin-bottom: 12px;
+  }
+
+  .header-main {
+    gap: 10px;
+  }
+
+  .proxy-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 18px;
+  }
+
+  .header-title-row {
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .proxy-name {
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+  }
+
+  .type-tag {
+    padding: 2px 8px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .status-badge {
+    padding: 2px 8px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .header-meta {
+    font-size: 12px;
   }
 
   .stats-bar {
+    margin-bottom: 12px;
     flex-wrap: wrap;
   }
 
   .stats-item {
-    flex: 1 1 40%;
+    padding: 10px 12px;
+    gap: 2px;
+    flex: 1 1 0;
   }
 
-  .stats-item:nth-child(n+3) {
+  .stats-item:nth-child(3) {
+    flex: 1 1 100%;
+    border-left: none;
     border-top: 1px solid var(--header-border);
   }
-}
 
-@media (max-width: 640px) {
-  .header-main {
-    flex-direction: column;
-    gap: 16px;
+  .stats-label {
+    font-size: 11px;
   }
 
+  .stats-value {
+    font-size: 13px;
+  }
+
+  .stats-value small {
+    font-size: 10px;
+  }
+
+  .config-section {
+    margin-bottom: 12px;
+  }
+
+  .config-section-header {
+    margin-bottom: 8px;
+  }
+
+  .config-section-header h2 {
+    font-size: 14px;
+  }
+
+  .config-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    background: var(--el-bg-color);
+    border: 1px solid var(--header-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .config-item-card {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 0;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .config-item-card + .config-item-card {
+    border-top: 1px solid var(--header-border);
+  }
+
+  .config-item-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+
+  .config-item-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    gap: 8px;
+  }
+
+  .config-item-label {
+    font-size: 13px;
+  }
+
+  .config-item-value {
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .annotations-section {
+    margin-top: 10px;
+  }
+
+  .traffic-card {
+    display: none;
+  }
 }
 </style>

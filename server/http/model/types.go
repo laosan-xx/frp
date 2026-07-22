@@ -49,6 +49,8 @@ type ClientInfoResp struct {
 	WireProtocol     string `json:"wireProtocol,omitempty"`
 	Hostname         string `json:"hostname"`
 	ClientIP         string `json:"clientIP,omitempty"`
+	IPLocation       string `json:"ipLocation,omitempty"`
+	IPIsp            string `json:"ipIsp,omitempty"`
 	FirstConnectedAt int64  `json:"firstConnectedAt"`
 	LastConnectedAt  int64  `json:"lastConnectedAt"`
 	DisconnectedAt   int64  `json:"disconnectedAt,omitempty"`

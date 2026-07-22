@@ -18,7 +18,6 @@ linters:
   - lll
   - makezero
   - misspell
-  - modernize
   - prealloc
   - predeclared
   - revive
@@ -48,9 +47,6 @@ linters:
       ignore-rules:
       - cancelled
       - marshalled
-    modernize:
-      disable:
-      - omitzero
     unparam:
       check-exported: false
   exclusions:

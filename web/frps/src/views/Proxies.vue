@@ -63,7 +63,9 @@
         :page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
         :total="total"
-        layout="total, sizes, prev, pager, next"
+        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next'"
+        :size="isMobile ? 'small' : 'default'"
+        :pager-count="isMobile ? 5 : 7"
         @current-change="onPageChange"
         @size-change="onPageSizeChange"
       />
@@ -81,13 +83,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElPagination } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import ActionButton from '@shared/components/ActionButton.vue'
 import ConfirmDialog from '@shared/components/ConfirmDialog.vue'
+import { useResponsive } from '../composables/useResponsive'
 import {
   BaseProxy,
   TCPProxy,
@@ -110,8 +113,9 @@ import type { ServerInfo } from '../types/server'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { isMobile } = useResponsive()
 
-const proxyTypes = [
+const allProxyTypes = [
   { label: 'All', value: 'all' },
   { label: 'TCP', value: 'tcp' },
   { label: 'UDP', value: 'udp' },
@@ -123,7 +127,16 @@ const proxyTypes = [
   { label: 'SUDP', value: 'sudp' },
 ]
 
-const activeType = ref((route.params.type as string) || 'all')
+const proxyTypes = computed(() =>
+  isMobile.value
+    ? allProxyTypes.filter((item) => item.value !== 'all')
+    : allProxyTypes,
+)
+
+const initialType = (route.params.type as string) || 'all'
+const activeType = ref(
+  isMobile.value && initialType === 'all' ? 'http' : initialType,
+)
 const proxies = ref<BaseProxy[]>([])
 const loading = ref(false)
 const searchText = ref('')
@@ -461,12 +474,39 @@ fetchData()
 }
 
 @media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions-section {
+    flex-wrap: wrap;
+  }
+
   .search-row {
     flex-direction: column;
   }
 
   .pagination-section {
     justify-content: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-title{
+    font-size: 22px;
+  }
+  .header-top{
+    gap: 12px;
+  }
+  .filter-section{
+    margin-top: 0;
+  }
+  .main-search :deep(.el-input__wrapper) {
+    height: 38px;
+    font-size: 14px;
+    padding: 4px 12px;
+    border-radius: 10px;
   }
 }
 </style>

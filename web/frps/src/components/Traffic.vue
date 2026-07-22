@@ -259,4 +259,24 @@ html.dark .legend-item {
 .dot.out {
   background-color: #91cc75;
 }
+
+@media (max-width: 768px) {
+  .traffic-chart-container {
+    height: 300px;
+    padding: 12px;
+  }
+
+  .date-label {
+    font-size: 10px;
+  }
+
+  /* When there are many data points, hide every other label to avoid overlap */
+  .day-column:nth-child(even) .date-label {
+    display: none;
+  }
+
+  .legend-item {
+    font-size: 12px;
+  }
+}
 </style>

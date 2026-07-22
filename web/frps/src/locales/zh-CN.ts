@@ -11,6 +11,7 @@ export default {
     loading: '加载中...',
     noLimit: '无限制',
     yes: '是',
+    copied: '已复制到剪贴板',
   },
   nav: {
     overview: '概览',
@@ -84,6 +85,9 @@ export default {
     noClients: '未找到客户端',
     fetchFailed: '获取客户端失败：{msg}',
   },
+  client: {
+    region: '归属地：',
+  },
   clientDetail: {
     connections: '连接数',
     runId: '运行 ID',
@@ -145,5 +149,13 @@ export default {
     trafficOut: '出站流量',
     noData: '暂无流量数据',
     fetchFailed: '获取流量信息失败！{msg}',
+  },
+  timeAgo: {
+    years: '{n} 年前',
+    months: '{n} 个月前',
+    days: '{n} 天前',
+    hours: '{n} 小时前',
+    minutes: '{n} 分钟前',
+    seconds: '{n} 秒前',
   },
 }
