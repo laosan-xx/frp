@@ -158,3 +158,66 @@ func TestClientRegistrySameRunIDMovesBetweenClientKeys(t *testing.T) {
 		t.Fatalf("new client key was not registered: %+v", newInfo)
 	}
 }
+
+func TestClientRegistryNoRawClientIDMarkedOffline(t *testing.T) {
+	registry := NewClientRegistry()
+	// Register with empty rawClientID – the effective ID falls back to runID.
+	key, conflict := registry.Register("user", "", "run-id", "host", "1.0.0", "127.0.0.1", wire.ProtocolV1)
+	if conflict {
+		t.Fatal("unexpected client conflict")
+	}
+
+	info, ok := registry.GetByKey(key)
+	if !ok || !info.Online {
+		t.Fatalf("client should be online after register: %+v", info)
+	}
+
+	registry.MarkOfflineByRunID("run-id")
+
+	// After disconnect the entry must still exist as offline.
+	info, ok = registry.GetByKey(key)
+	if !ok {
+		t.Fatalf("client without explicit clientID should remain as offline entry, but was deleted")
+	}
+	if info.Online {
+		t.Fatalf("client should be offline after disconnect: %+v", info)
+	}
+	if info.RunID != "" {
+		t.Fatalf("offline client should have empty runID, got %q", info.RunID)
+	}
+	if info.DisconnectedAt.IsZero() {
+		t.Fatal("offline client should have a non-zero DisconnectedAt")
+	}
+}
+
+func TestClientRegistryPurgeOfflineClients(t *testing.T) {
+	start := time.Date(2026, time.May, 8, 12, 0, 0, 0, time.UTC)
+	clk := clocktesting.NewFakeClock(start)
+	registry := newClientRegistryWithClock(clk)
+
+	// Register two clients without explicit rawClientID.
+	registry.Register("user", "", "run-1", "host1", "1.0.0", "127.0.0.1", wire.ProtocolV1)
+	registry.Register("user", "", "run-2", "host2", "1.0.0", "127.0.0.2", wire.ProtocolV1)
+
+	// Disconnect both.
+	registry.MarkOfflineByRunID("run-1")
+	clk.SetTime(start.Add(6 * 24 * time.Hour))
+	registry.MarkOfflineByRunID("run-2")
+
+	// Advance time beyond the purge threshold for run-1 only.
+	clk.SetTime(start.Add(8 * 24 * time.Hour))
+
+	purged := registry.PurgeOfflineClients(7 * 24 * time.Hour)
+	if purged != 1 {
+		t.Fatalf("expected 1 purged, got %d", purged)
+	}
+
+	// run-1 should be gone (disconnected 8 days ago > 7 day threshold).
+	if _, ok := registry.GetByKey("user.run-1"); ok {
+		t.Fatal("stale offline client should have been purged")
+	}
+	// run-2 should still exist (disconnected 2 days ago < 7 day threshold).
+	if _, ok := registry.GetByKey("user.run-2"); !ok {
+		t.Fatal("recent offline client should not have been purged")
+	}
+}

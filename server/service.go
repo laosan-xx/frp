@@ -403,6 +403,25 @@ func (svr *Service) Run(ctx context.Context) {
 		go svr.rc.NatHoleController.CleanWorker(svr.ctx)
 	}
 
+	// Periodically purge offline client entries older than 7 days to prevent
+	// unbounded growth from ephemeral clients (those without an explicit
+	// clientID) that connect and disconnect frequently.
+	go func() {
+		ticker := time.NewTicker(12 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				purged := svr.clientRegistry.PurgeOfflineClients(7 * 24 * time.Hour)
+				if purged > 0 {
+					log.Debugf("purged %d stale offline client entries", purged)
+				}
+			case <-svr.ctx.Done():
+				return
+			}
+		}
+	}()
+
 	if svr.sshTunnelGateway != nil {
 		go svr.sshTunnelGateway.Run()
 	}
