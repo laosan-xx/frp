@@ -2,6 +2,12 @@ import { buildQueryString, http } from './http'
 import type { V2Page } from './http'
 import type { ClientInfoData, ClientListV2Params } from '../types/client'
 
+export interface SystemPruneResponse {
+  type: string
+  cleared: number
+  total: number
+}
+
 export const getClients = () => {
   return http.get<ClientInfoData[]>('../api/clients')
 }
@@ -27,4 +33,16 @@ export const getClient = (key: string) => {
 
 export const getClientV2 = (key: string) => {
   return http.getV2<ClientInfoData>(`../api/v2/clients/${encodeURIComponent(key)}`)
+}
+
+export const deleteClientV2 = (key: string) => {
+  return http.deleteV2<{ status: string }>(
+    `../api/v2/clients/${encodeURIComponent(key)}`,
+  )
+}
+
+export const clearOfflineClients = () => {
+  return http.postV2<SystemPruneResponse>(
+    '../api/v2/system/prune?type=offline_clients',
+  )
 }

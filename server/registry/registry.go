@@ -184,6 +184,23 @@ func (cr *ClientRegistry) PurgeOfflineClients(maxAge time.Duration) int {
 	return count
 }
 
+// PruneAllOfflineClients removes all offline client entries regardless of how
+// long they have been offline. Returns the number cleared and the total count
+// before pruning.
+func (cr *ClientRegistry) PruneAllOfflineClients() (cleared, total int) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+
+	total = len(cr.clients)
+	for key, info := range cr.clients {
+		if !info.Online {
+			delete(cr.clients, key)
+			cleared++
+		}
+	}
+	return cleared, total
+}
+
 // List returns a snapshot of all known clients.
 func (cr *ClientRegistry) List() []ClientInfo {
 	cr.mu.RLock()
@@ -225,6 +242,23 @@ func (cr *ClientRegistry) composeClientKey(user, id string) string {
 	default:
 		return fmt.Sprintf("%s.%s", user, id)
 	}
+}
+
+// DeleteOfflineClient removes a single offline client by its composite key.
+// Returns false if the client is online or does not exist.
+func (cr *ClientRegistry) DeleteOfflineClient(key string) bool {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+
+	info, ok := cr.clients[key]
+	if !ok {
+		return false
+	}
+	if info.Online {
+		return false
+	}
+	delete(cr.clients, key)
+	return true
 }
 
 // UpdateIPLocation stores the geolocation and ISP info for a client by key.

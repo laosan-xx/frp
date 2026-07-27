@@ -47,6 +47,14 @@
       <div class="status-badge" :class="client.online ? 'online' : 'offline'">
         {{ client.online ? $t('common.online') : $t('common.offline') }}
       </div>
+      <el-icon
+        v-if="!client.online"
+        class="delete-icon"
+        :title="$t('clients.deleteTitle')"
+        @click.stop="$emit('delete', client)"
+      >
+        <Delete />
+      </el-icon>
       <el-icon class="arrow-icon"><ArrowRight /></el-icon>
     </div>
   </div>
@@ -54,7 +62,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { DataLine, ArrowRight } from '@element-plus/icons-vue'
+import { DataLine, ArrowRight, Delete } from '@element-plus/icons-vue'
 import type { Client } from '../utils/client'
 
 interface Props {
@@ -63,6 +71,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+defineEmits<{
+  delete: [client: Client]
+}>()
 const router = useRouter()
 
 const viewDetail = () => {
@@ -283,6 +294,20 @@ const viewDetail = () => {
 .client-card:hover .arrow-icon {
   color: var(--el-text-color-primary);
   transform: translateX(4px);
+}
+
+.delete-icon {
+  font-size: 16px;
+  color: var(--el-text-color-placeholder);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.delete-icon:hover {
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
 }
 
 /* Dark mode adjustments */

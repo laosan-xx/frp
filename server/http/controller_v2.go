@@ -39,6 +39,7 @@ const (
 	maxV2PageSize     = 200
 
 	v2SystemPruneTypeOfflineProxies = "offline_proxies"
+	v2SystemPruneTypeOfflineClients = "offline_clients"
 	v2ProxyTrafficDefaultDays       = 7
 	v2ProxyTrafficUnit              = "bytes"
 	v2ProxyTrafficGranularity       = "day"
@@ -96,12 +97,27 @@ func (c *Controller) APIV2SystemPrune(ctx *httppkg.Context) (any, error) {
 		return nil, err
 	}
 
-	cleared, total := mem.StatsCollector.PruneOfflineProxies()
-	return model.V2SystemPruneResp{
-		Type:    pruneType,
-		Cleared: cleared,
-		Total:   total,
-	}, nil
+	switch pruneType {
+	case v2SystemPruneTypeOfflineProxies:
+		cleared, total := mem.StatsCollector.PruneOfflineProxies()
+		return model.V2SystemPruneResp{
+			Type:    pruneType,
+			Cleared: cleared,
+			Total:   total,
+		}, nil
+	case v2SystemPruneTypeOfflineClients:
+		if c.clientRegistry == nil {
+			return nil, fmt.Errorf("client registry unavailable")
+		}
+		cleared, total := c.clientRegistry.PruneAllOfflineClients()
+		return model.V2SystemPruneResp{
+			Type:    pruneType,
+			Cleared: cleared,
+			Total:   total,
+		}, nil
+	default:
+		return nil, httppkg.NewError(http.StatusBadRequest, "unsupported prune type")
+	}
 }
 
 // /api/v2/users
@@ -215,6 +231,32 @@ func (c *Controller) APIV2ClientDetail(ctx *httppkg.Context) (any, error) {
 		ClientInfoResp: resp,
 		Status:         status,
 	}, nil
+}
+
+// DELETE /api/v2/clients/{key}
+func (c *Controller) APIV2ClientDelete(ctx *httppkg.Context) (any, error) {
+	key, err := decodeV2PathParam(ctx, "key", "client key")
+	if err != nil {
+		return nil, err
+	}
+
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+
+	info, ok := c.clientRegistry.GetByKey(key)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", key))
+	}
+	if info.Online {
+		return nil, httppkg.NewError(http.StatusConflict, "cannot delete an online client")
+	}
+
+	if !c.clientRegistry.DeleteOfflineClient(key) {
+		return nil, httppkg.NewError(http.StatusConflict, "client became online or was removed")
+	}
+
+	return map[string]string{"status": "deleted"}, nil
 }
 
 // /api/v2/proxies
@@ -370,10 +412,10 @@ func parseV2SystemPruneType(raw string) (string, error) {
 	switch pruneType {
 	case "":
 		return "", httppkg.NewError(http.StatusBadRequest, "type is required")
-	case v2SystemPruneTypeOfflineProxies:
+	case v2SystemPruneTypeOfflineProxies, v2SystemPruneTypeOfflineClients:
 		return pruneType, nil
 	default:
-		return "", httppkg.NewError(http.StatusBadRequest, "type must be one of offline_proxies")
+		return "", httppkg.NewError(http.StatusBadRequest, "type must be one of offline_proxies, offline_clients")
 	}
 }
 
