@@ -48,10 +48,7 @@ func isStaticFileRequest(path string) bool {
 	}
 	ext := strings.ToLower(filepath.Ext(path))
 	staticExts := []string{".html", ".css", ".js", ".ico", ".png", ".jpg", ".gif", ".svg", ".woff", ".woff2", ".ttf", ".eot"}
-	if slices.Contains(staticExts, ext) {
-		return true
-	}
-	return false
+	return slices.Contains(staticExts, ext)
 }
 
 type HTTPAuthMiddleware struct {
