@@ -406,20 +406,32 @@ onMounted(() => {
 function copyPort() {
   if (!proxy.value?.port) return
   const port = String(proxy.value.port)
-  navigator.clipboard.writeText(port).then(() => {
-    ElMessage.success(t('common.copied'))
-  }).catch(() => {
-    // fallback for older browsers
+  const fallbackCopy = () => {
     const textarea = document.createElement('textarea')
     textarea.value = port
     textarea.style.position = 'fixed'
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)
     textarea.select()
-    document.execCommand('copy')
+    try {
+      document.execCommand('copy')
+      ElMessage.success(t('common.copied'))
+    } catch {
+      ElMessage.error(t('common.copyFailed'))
+    }
     document.body.removeChild(textarea)
-    ElMessage.success(t('common.copied'))
-  })
+  }
+  // navigator.clipboard is only available in secure contexts (https or
+  // localhost). When accessing the dashboard over http on a LAN IP it is
+  // undefined, so guard against it and fall back to the legacy method.
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard
+      .writeText(port)
+      .then(() => ElMessage.success(t('common.copied')))
+      .catch(fallbackCopy)
+  } else {
+    fallbackCopy()
+  }
 }
 </script>
 

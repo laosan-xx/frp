@@ -38,6 +38,8 @@ const (
 	TypeNatHoleResp        byte = 'm'
 	TypeNatHoleSid         byte = '5'
 	TypeNatHoleReport      byte = '6'
+	TypeServerCommand      byte = '7'
+	TypeServerCommandResp  byte = '8'
 )
 
 var msgTypeMap = map[byte]any{
@@ -59,6 +61,8 @@ var msgTypeMap = map[byte]any{
 	TypeNatHoleResp:        NatHoleResp{},
 	TypeNatHoleSid:         NatHoleSid{},
 	TypeNatHoleReport:      NatHoleReport{},
+	TypeServerCommand:      ServerCommand{},
+	TypeServerCommandResp:  ServerCommandResp{},
 }
 
 var TypeNameNatHoleResp = reflect.TypeFor[NatHoleResp]().Name()
@@ -244,4 +248,23 @@ type NatHoleSid struct {
 type NatHoleReport struct {
 	Sid     string `json:"sid,omitempty"`
 	Success bool   `json:"success,omitempty"`
+}
+
+// ServerCommand is sent from frps to frpc to execute a command on the client side.
+type ServerCommand struct {
+	// RequestID correlates a command with its response so that concurrent
+	// commands to the same client are routed to the correct caller instead of
+	// clobbering each other (the server historically used a single shared
+	// callback that was overwritten on every send).
+	RequestID string `json:"request_id,omitempty"`
+	Command   string `json:"command,omitempty"`
+	Payload   string `json:"payload,omitempty"`
+}
+
+// ServerCommandResp is sent from frpc to frps as a response to a ServerCommand.
+type ServerCommandResp struct {
+	RequestID string `json:"request_id,omitempty"`
+	Command   string `json:"command,omitempty"`
+	Result    string `json:"result,omitempty"`
+	Output    string `json:"output,omitempty"`
 }

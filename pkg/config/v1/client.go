@@ -80,6 +80,11 @@ type ClientCommonConfig struct {
 
 	// Store config enables the built-in store source (not configurable via sources list).
 	Store StoreConfig `json:"store,omitempty"`
+
+	// RemoteCommandHandler specifies how to handle ServerCommand messages from frps.
+	// - "builtin" or empty: use the built-in command executor (node_link, get_nodes, del_node, etc.)
+	// - "/path/to/script": invoke an external script with command as $1 and payload as $2.
+	RemoteCommandHandler string `json:"remoteCommandHandler,omitempty"`
 }
 
 func (c *ClientCommonConfig) Complete() error {

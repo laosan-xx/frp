@@ -16,6 +16,8 @@ package http
 
 import (
 	"cmp"
+	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"math"
@@ -28,7 +30,9 @@ import (
 
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/fatedier/frp/pkg/metrics/mem"
+	"github.com/fatedier/frp/pkg/msg"
 	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/fatedier/frp/pkg/util/iplookup"
 	"github.com/fatedier/frp/server/http/model"
 	"github.com/fatedier/frp/server/registry"
 )
@@ -39,6 +43,7 @@ const (
 	maxV2PageSize     = 200
 
 	v2SystemPruneTypeOfflineProxies = "offline_proxies"
+	v2SystemPruneTypeOfflineClients = "offline_clients"
 	v2ProxyTrafficDefaultDays       = 7
 	v2ProxyTrafficUnit              = "bytes"
 	v2ProxyTrafficGranularity       = "day"
@@ -96,12 +101,27 @@ func (c *Controller) APIV2SystemPrune(ctx *httppkg.Context) (any, error) {
 		return nil, err
 	}
 
-	cleared, total := mem.StatsCollector.PruneOfflineProxies()
-	return model.V2SystemPruneResp{
-		Type:    pruneType,
-		Cleared: cleared,
-		Total:   total,
-	}, nil
+	switch pruneType {
+	case v2SystemPruneTypeOfflineProxies:
+		cleared, total := mem.StatsCollector.PruneOfflineProxies()
+		return model.V2SystemPruneResp{
+			Type:    pruneType,
+			Cleared: cleared,
+			Total:   total,
+		}, nil
+	case v2SystemPruneTypeOfflineClients:
+		if c.clientRegistry == nil {
+			return nil, fmt.Errorf("client registry unavailable")
+		}
+		cleared, total := c.clientRegistry.PruneAllOfflineClients()
+		return model.V2SystemPruneResp{
+			Type:    pruneType,
+			Cleared: cleared,
+			Total:   total,
+		}, nil
+	default:
+		return nil, httppkg.NewError(http.StatusBadRequest, "unsupported prune type")
+	}
 }
 
 // /api/v2/users
@@ -215,6 +235,144 @@ func (c *Controller) APIV2ClientDetail(ctx *httppkg.Context) (any, error) {
 		ClientInfoResp: resp,
 		Status:         status,
 	}, nil
+}
+
+// DELETE /api/v2/clients/{key}
+func (c *Controller) APIV2ClientDelete(ctx *httppkg.Context) (any, error) {
+	key, err := decodeV2PathParam(ctx, "key", "client key")
+	if err != nil {
+		return nil, err
+	}
+
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+
+	info, ok := c.clientRegistry.GetByKey(key)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", key))
+	}
+	if info.Online {
+		return nil, httppkg.NewError(http.StatusConflict, "cannot delete an online client")
+	}
+
+	if !c.clientRegistry.DeleteOfflineClient(key) {
+		return nil, httppkg.NewError(http.StatusConflict, "client became online or was removed")
+	}
+
+	return map[string]string{"status": "deleted"}, nil
+}
+
+// POST /api/v2/clients/{key}/command
+func (c *Controller) APIV2ClientCommand(ctx *httppkg.Context) (any, error) {
+	key, err := decodeV2PathParam(ctx, "key", "client key")
+	if err != nil {
+		return nil, err
+	}
+
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+
+	info, ok := c.clientRegistry.GetByKey(key)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", key))
+	}
+	if !info.Online {
+		return nil, httppkg.NewError(http.StatusConflict, "client is offline")
+	}
+
+	if c.cmdSender == nil {
+		return nil, httppkg.NewError(http.StatusInternalServerError, "command sender is not available")
+	}
+
+	var req model.V2ClientCommandReq
+	if err := ctx.BindJSON(&req); err != nil {
+		return nil, httppkg.NewError(http.StatusBadRequest, "invalid request body")
+	}
+	if req.Command == "" {
+		return nil, httppkg.NewError(http.StatusBadRequest, "command is required")
+	}
+
+	respCh := make(chan *msg.ServerCommandResp, 1)
+	cmd := &msg.ServerCommand{
+		Command: req.Command,
+		Payload: req.Payload,
+	}
+
+	err = c.cmdSender.SendCommandToClient(info.RunID, cmd, func(resp *msg.ServerCommandResp) {
+		select {
+		case respCh <- resp:
+		default:
+		}
+	})
+	if err != nil {
+		return nil, httppkg.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	// Wait for response with timeout. Node/device latency tests are bounded to
+	// 10s (the frpc side starts a temp proxy + probes the egress IP, which is
+	// expected to finish within a few seconds); other remote commands keep the
+	// longer 30s budget.
+	cmdTimeout := 30 * time.Second
+	if req.Command == "url_test_node" || req.Command == "url_test_device" {
+		cmdTimeout = 10 * time.Second
+	}
+	timer := time.NewTimer(cmdTimeout)
+	defer timer.Stop()
+	select {
+	case resp := <-respCh:
+		output := resp.Output
+		// Enrich url_test_node / url_test_device results with IP geolocation
+		// using the local db. Both carry an egress/device IP in the "ip" field.
+		if (req.Command == "url_test_node" || req.Command == "url_test_device") && c.ipLookup != nil && output != "" {
+			if enriched, ok := enrichURLTestOutput(c.ipLookup, output); ok {
+				output = enriched
+			}
+		}
+		return model.V2ClientCommandResp{
+			Command: resp.Command,
+			Result:  resp.Result,
+			Output:  output,
+		}, nil
+	case <-timer.C:
+		return nil, httppkg.NewError(http.StatusGatewayTimeout, fmt.Sprintf("command timed out: client did not respond within %s", cmdTimeout))
+	case <-ctx.Req.Context().Done():
+		return nil, httppkg.NewError(http.StatusGatewayTimeout, "request cancelled or timed out")
+	}
+}
+
+// enrichURLTestOutput parses the JSON output of the frpc url_test_node /
+// url_test_device command, and if it carries an egress IP, augments it with:
+//   - geolocation (location/isp) from the local IP database held by frps, and
+//   - IP type classification (native/broadcast/hosting/ISP/privacy) via the
+//     centralized, cached ipinfo.io + ip-api lookup (see ipclassify.go).
+//
+// Centralizing here means every router's node tests share a single egress and a
+// single cache, so the rate-limited ip-api endpoint is hit at most once per IP.
+func enrichURLTestOutput(ipLookup *iplookup.LookupService, output string) (string, bool) {
+	var data map[string]any
+	if err := json.Unmarshal([]byte(output), &data); err != nil {
+		return output, false
+	}
+	if ip, _ := data["ip"].(string); ip != "" {
+		// Geolocation from local ip2region database (offline).
+		if ipLookup != nil {
+			if res, err := ipLookup.Lookup(context.Background(), ip); err == nil {
+				data["location"] = res.Location
+				data["isp"] = res.ISP
+			}
+		}
+		// IP type classification from online intel (cached per IP).
+		if cls, ok := classifyIP(ip); ok {
+			applyIPClassification(data, cls)
+		}
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return output, false
+	}
+	return string(b), true
 }
 
 // /api/v2/proxies
@@ -370,10 +528,10 @@ func parseV2SystemPruneType(raw string) (string, error) {
 	switch pruneType {
 	case "":
 		return "", httppkg.NewError(http.StatusBadRequest, "type is required")
-	case v2SystemPruneTypeOfflineProxies:
+	case v2SystemPruneTypeOfflineProxies, v2SystemPruneTypeOfflineClients:
 		return pruneType, nil
 	default:
-		return "", httppkg.NewError(http.StatusBadRequest, "type must be one of offline_proxies")
+		return "", httppkg.NewError(http.StatusBadRequest, "type must be one of offline_proxies, offline_clients")
 	}
 }
 

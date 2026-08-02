@@ -25,7 +25,9 @@ import (
 	"github.com/fatedier/frp/pkg/config/types"
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/fatedier/frp/pkg/metrics/mem"
+	"github.com/fatedier/frp/pkg/msg"
 	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/fatedier/frp/pkg/util/iplookup"
 	"github.com/fatedier/frp/pkg/util/log"
 	"github.com/fatedier/frp/pkg/util/version"
 	"github.com/fatedier/frp/server/http/model"
@@ -38,21 +40,32 @@ type Controller struct {
 	serverCfg      *v1.ServerConfig
 	clientRegistry *registry.ClientRegistry
 	pxyManager     ProxyManager
+	cmdSender      CommandSender
+	ipLookup       *iplookup.LookupService
 }
 
 type ProxyManager interface {
 	GetByName(name string) (proxy.Proxy, bool)
 }
 
+// CommandSender is the interface for sending commands to clients through the control connection.
+type CommandSender interface {
+	SendCommandToClient(runID string, cmd *msg.ServerCommand, onResp func(*msg.ServerCommandResp)) error
+}
+
 func NewController(
 	serverCfg *v1.ServerConfig,
 	clientRegistry *registry.ClientRegistry,
 	pxyManager ProxyManager,
+	cmdSender CommandSender,
+	ipLookup *iplookup.LookupService,
 ) *Controller {
 	return &Controller{
 		serverCfg:      serverCfg,
 		clientRegistry: clientRegistry,
 		pxyManager:     pxyManager,
+		cmdSender:      cmdSender,
+		ipLookup:       ipLookup,
 	}
 }
 

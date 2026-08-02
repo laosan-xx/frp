@@ -42,7 +42,7 @@ type ClientInfo struct {
 }
 
 // ClientRegistry keeps track of active clients keyed by "{user}.{clientID}" (runID fallback when raw clientID is empty).
-// Entries without an explicit raw clientID are removed on disconnect to avoid stale offline records.
+// Disconnected clients are kept as offline entries and purged after 7 days by PurgeOfflineClients.
 type ClientRegistry struct {
 	mu       sync.RWMutex
 	clients  map[string]*ClientInfo
@@ -98,11 +98,7 @@ func (cr *ClientRegistry) RegisterWithControlID(
 	}
 	if previousKey, ok := cr.runIndex[runID]; ok && previousKey != key {
 		if previous, ok := cr.clients[previousKey]; ok && previous.RunID == runID {
-			if previous.RawClientID == "" {
-				delete(cr.clients, previousKey)
-			} else {
-				setClientOffline(previous, now)
-			}
+			setClientOffline(previous, now)
 		}
 		delete(cr.runIndex, runID)
 	}
@@ -156,11 +152,7 @@ func (cr *ClientRegistry) markOfflineByRunID(runID string, controlID uint64, mat
 		return
 	}
 	if info, ok := cr.clients[key]; ok && info.RunID == runID && (!matchControlID || info.ControlID == controlID) {
-		if info.RawClientID == "" {
-			delete(cr.clients, key)
-		} else {
-			setClientOffline(info, cr.clock.Now())
-		}
+		setClientOffline(info, cr.clock.Now())
 	}
 	if info, ok := cr.clients[key]; !ok || info.RunID != runID {
 		delete(cr.runIndex, runID)
@@ -172,6 +164,41 @@ func setClientOffline(info *ClientInfo, now time.Time) {
 	info.ControlID = 0
 	info.Online = false
 	info.DisconnectedAt = now
+}
+
+// PurgeOfflineClients removes client entries that have been offline for longer
+// than the given duration. Online clients and offline entries that have not yet
+// exceeded the threshold are left untouched.
+func (cr *ClientRegistry) PurgeOfflineClients(maxAge time.Duration) int {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+
+	now := cr.clock.Now()
+	count := 0
+	for key, info := range cr.clients {
+		if !info.Online && !info.DisconnectedAt.IsZero() && now.Sub(info.DisconnectedAt) > maxAge {
+			delete(cr.clients, key)
+			count++
+		}
+	}
+	return count
+}
+
+// PruneAllOfflineClients removes all offline client entries regardless of how
+// long they have been offline. Returns the number cleared and the total count
+// before pruning.
+func (cr *ClientRegistry) PruneAllOfflineClients() (cleared, total int) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+
+	total = len(cr.clients)
+	for key, info := range cr.clients {
+		if !info.Online {
+			delete(cr.clients, key)
+			cleared++
+		}
+	}
+	return cleared, total
 }
 
 // List returns a snapshot of all known clients.
@@ -215,6 +242,23 @@ func (cr *ClientRegistry) composeClientKey(user, id string) string {
 	default:
 		return fmt.Sprintf("%s.%s", user, id)
 	}
+}
+
+// DeleteOfflineClient removes a single offline client by its composite key.
+// Returns false if the client is online or does not exist.
+func (cr *ClientRegistry) DeleteOfflineClient(key string) bool {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+
+	info, ok := cr.clients[key]
+	if !ok {
+		return false
+	}
+	if info.Online {
+		return false
+	}
+	delete(cr.clients, key)
+	return true
 }
 
 // UpdateIPLocation stores the geolocation and ISP info for a client by key.

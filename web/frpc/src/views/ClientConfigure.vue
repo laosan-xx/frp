@@ -9,7 +9,7 @@
     <div class="editor-header">
       <div class="header-left">
         <a
-          href="https://github.com/fatedier/frp#configuration-files"
+          href="https://github.com/laosan-xx/frp#configuration-files"
           target="_blank"
           class="docs-link"
         >

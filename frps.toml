@@ -1,0 +1,19 @@
+bindPort = 5444
+
+# Dashboard
+webServer.addr = "0.0.0.0"
+webServer.port = 7500
+webServer.user = "admin"
+webServer.password = "admin"
+
+# Auth
+auth.method = "token"
+auth.token = "TiZTjCmJ9ZwCCiMy"
+
+# Log
+log.to = "console"
+log.level = "info"
+
+# GitHub Token（固件列表 API 直连 GitHub 使用，避免共享代理限流）
+# 使用 Fine-grained PAT，仅需 Contents: Read 权限（5000 req/h vs 匿名 60 req/h）
+githubToken = ""

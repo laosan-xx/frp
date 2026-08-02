@@ -16,7 +16,9 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"os/exec"
 	"sync/atomic"
 	"time"
 
@@ -47,6 +49,35 @@ type SessionContext struct {
 	Connector MessageConnector
 	// Virtual net controller
 	VnetController *vnet.Controller
+	// UDPPacketCodec is immutable for the lifetime of this negotiated session.
+	UDPPacketCodec string
+}
+
+// CommandExecutor handles the execution of commands received from frps.
+// The default implementation executes shell commands via os/exec,
+// but it can be replaced for custom behavior (e.g., plugin-based execution).
+type CommandExecutor interface {
+	Execute(command, payload string) (result, output string)
+}
+
+type defaultCommandExecutor struct{}
+
+func (e *defaultCommandExecutor) Execute(command, payload string) (result, output string) {
+	return "ok", fmt.Sprintf("command [%s] received but no handler configured (set remoteCommandHandler in frpc config)", command)
+}
+
+// scriptCommandExecutor executes commands by invoking an external script/executable.
+type scriptCommandExecutor struct {
+	scriptPath string
+}
+
+func (e *scriptCommandExecutor) Execute(command, payload string) (result, output string) {
+	cmd := exec.Command(e.scriptPath, command, payload)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "error", fmt.Sprintf("script execution failed: %v, output: %s", err, string(out))
+	}
+	return "ok", string(out)
 }
 
 type Control struct {
@@ -76,6 +107,9 @@ type Control struct {
 	// msgDispatcher is a wrapper for control connection.
 	// It provides a channel for sending messages, and you can register handlers to process messages based on their respective types.
 	msgDispatcher *msg.Dispatcher
+
+	// commandExecutor handles ServerCommand messages from frps
+	cmdExecutor CommandExecutor
 }
 
 func NewControl(ctx context.Context, sessionCtx *SessionContext) (*Control, error) {
@@ -91,10 +125,18 @@ func NewControl(ctx context.Context, sessionCtx *SessionContext) (*Control, erro
 	ctl.msgDispatcher = msg.NewDispatcher(sessionCtx.Conn)
 	ctl.registerMsgHandlers()
 	ctl.msgTransporter = transport.NewMessageTransporter(ctl.msgDispatcher)
+	ctl.cmdExecutor = &defaultCommandExecutor{}
 
-	ctl.pm = proxy.NewManager(ctl.ctx, sessionCtx.Common, sessionCtx.Auth.EncryptionKey(), ctl.msgTransporter, sessionCtx.VnetController)
+	ctl.pm = proxy.NewManager(
+		ctl.ctx,
+		sessionCtx.Common,
+		sessionCtx.Auth.EncryptionKey(),
+		ctl.msgTransporter,
+		sessionCtx.VnetController,
+		sessionCtx.UDPPacketCodec,
+	)
 	ctl.vm = visitor.NewManager(ctl.ctx, sessionCtx.RunID, sessionCtx.Common,
-		ctl.connectServer, ctl.msgTransporter, sessionCtx.VnetController)
+		ctl.connectServer, ctl.msgTransporter, sessionCtx.VnetController, sessionCtx.UDPPacketCodec)
 	return ctl, nil
 }
 
@@ -110,6 +152,34 @@ func (ctl *Control) Run(proxyCfgs []v1.ProxyConfigurer, visitorCfgs []v1.Visitor
 
 func (ctl *Control) SetInWorkConnCallback(cb func(*v1.ProxyBaseConfig, net.Conn, *msg.StartWorkConn) bool) {
 	ctl.pm.SetInWorkConnCallback(cb)
+}
+
+// SetCommandExecutor sets a custom command executor.
+func (ctl *Control) SetCommandExecutor(executor CommandExecutor) {
+	ctl.cmdExecutor = executor
+}
+
+func (ctl *Control) handleServerCommand(m msg.Message) {
+	inMsg := m.(*msg.ServerCommand)
+
+	var result, output string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				result = "error"
+				output = fmt.Sprintf("internal error: %v", r)
+			}
+		}()
+		result, output = ctl.cmdExecutor.Execute(inMsg.Command, inMsg.Payload)
+	}()
+
+	resp := &msg.ServerCommandResp{
+		RequestID: inMsg.RequestID,
+		Command:   inMsg.Command,
+		Result:    result,
+		Output:    output,
+	}
+	_ = ctl.msgDispatcher.Send(resp)
 }
 
 func (ctl *Control) handleReqWorkConn(_ msg.Message) {
@@ -225,6 +295,7 @@ func (ctl *Control) registerMsgHandlers() {
 	ctl.msgDispatcher.RegisterHandler(&msg.NewProxyResp{}, ctl.handleNewProxyResp)
 	ctl.msgDispatcher.RegisterHandler(&msg.NatHoleResp{}, ctl.handleNatHoleResp)
 	ctl.msgDispatcher.RegisterHandler(&msg.Pong{}, ctl.handlePong)
+	ctl.msgDispatcher.RegisterHandler(&msg.ServerCommand{}, msg.AsyncHandler(ctl.handleServerCommand))
 }
 
 // heartbeatWorker sends heartbeat to server and check heartbeat timeout.

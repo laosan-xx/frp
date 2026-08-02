@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"runtime/debug"
 	"sync"
@@ -45,6 +46,8 @@ type ControlID uint64
 
 var nextControlID atomic.Uint64
 
+const workConnPoolCapacityOffset = 10
+
 type controlEntry struct {
 	ctl *Control
 	id  ControlID
@@ -61,6 +64,12 @@ type ControlManager struct {
 	ctlsByRunID map[string]*controlEntry
 	registry    *registry.ClientRegistry
 	closed      bool
+
+	// serverCmdSeq assigns a monotonically increasing id to each
+	// SendCommandToClient call, used to correlate responses (see
+	// OnServerCommandResp). It is process-global which is fine: ids only need
+	// to be unique per client control, and per-manager uniqueness guarantees that.
+	serverCmdSeq uint64
 
 	mu sync.RWMutex
 }
@@ -283,7 +292,7 @@ func (cm *ControlManager) GetByID(runID string) (ctl *Control, ok bool) {
 // admitVisitorByRunID commits a visitor admission against the current running
 // control while its run and lifecycle ownership are held. The callback must
 // only perform the in-memory, buffered visitor admission.
-func (cm *ControlManager) admitVisitorByRunID(runID string, admit func(user string) error) (bool, error) {
+func (cm *ControlManager) admitVisitorByRunID(runID string, admit func(user, wireProtocol, udpPacketCodec string) error) (bool, error) {
 	entry, ok := cm.lockCurrentRun(runID, false)
 	if !ok {
 		return false, nil
@@ -296,7 +305,7 @@ func (cm *ControlManager) admitVisitorByRunID(runID string, admit func(user stri
 	if ctl.state != controlStateRunning {
 		return false, nil
 	}
-	return true, admit(ctl.sessionCtx.LoginMsg.User)
+	return true, admit(ctl.sessionCtx.LoginMsg.User, ctl.sessionCtx.WireProtocol, ctl.sessionCtx.UDPPacketCodec)
 }
 
 // RegisterWorkConn transfers conn to ctl only if ctl is still the current
@@ -349,6 +358,26 @@ func (cm *ControlManager) Close() error {
 	return nil
 }
 
+// SendCommandToClient sends a ServerCommand to the client identified by runID.
+// onResp is called when the client responds. If nil, a default logging handler is used.
+//
+// Concurrency: each call is assigned a unique RequestID (carried over the wire in
+// ServerCommand.RequestID and echoed back in ServerCommandResp.RequestID). Responses
+// are routed to the matching onResp by that id, so two commands issued to the same
+// client at nearly the same time no longer cross-talk.
+func (cm *ControlManager) SendCommandToClient(runID string, cmd *msg.ServerCommand, onResp func(*msg.ServerCommandResp)) error {
+	ctl, ok := cm.GetByID(runID)
+	if !ok {
+		return fmt.Errorf("client with runID [%s] is not online or not found", runID)
+	}
+	reqID := fmt.Sprintf("%d", atomic.AddUint64(&cm.serverCmdSeq, 1))
+	cmd.RequestID = reqID
+	if onResp != nil {
+		ctl.OnServerCommandResp(reqID, onResp)
+	}
+	return ctl.SendCommand(cmd)
+}
+
 // SessionContext encapsulates the input parameters for creating a new Control.
 type SessionContext struct {
 	// all resource managers and controllers
@@ -368,7 +397,8 @@ type SessionContext struct {
 	// server configuration
 	ServerCfg *v1.ServerConfig
 	// negotiated wire protocol for this client session
-	WireProtocol string
+	WireProtocol   string
+	UDPPacketCodec string
 }
 
 type controlState uint8
@@ -421,6 +451,16 @@ type Control struct {
 	interruptOnce sync.Once
 	interruptErr  error
 
+	// pendingServerCmds maps a unique request id to its response callback so
+	// that multiple concurrent ServerCommands to the same client are routed to
+	// the correct caller instead of clobbering each other. The previous design
+	// used a single callback that was overwritten on every SendCommandToClient
+	// call, causing the first of two concurrent commands to time out and the
+	// second to receive the first command's response (wrong latency).
+	pendingServerCmdsMu  sync.Mutex
+	pendingServerCmds    map[string]func(*msg.ServerCommandResp)
+	serverCmdHandlerOnce sync.Once
+
 	mu sync.RWMutex
 
 	xl            *xlog.Logger
@@ -430,10 +470,27 @@ type Control struct {
 }
 
 func NewControl(ctx context.Context, sessionCtx *SessionContext) (*Control, error) {
-	poolCount := min(sessionCtx.LoginMsg.PoolCount, int(sessionCtx.ServerCfg.Transport.MaxPoolCount))
+	if sessionCtx.LoginMsg.PoolCount < 0 {
+		return nil, fmt.Errorf("invalid pool count %d, must be non-negative", sessionCtx.LoginMsg.PoolCount)
+	}
+	if sessionCtx.ServerCfg.Transport.MaxPoolCount < 0 {
+		return nil, fmt.Errorf(
+			"invalid max pool count %d, must be non-negative",
+			sessionCtx.ServerCfg.Transport.MaxPoolCount,
+		)
+	}
+	effectivePoolCount := min(int64(sessionCtx.LoginMsg.PoolCount), sessionCtx.ServerCfg.Transport.MaxPoolCount)
+	maxPoolCountForChannel := int64(math.MaxInt) - int64(workConnPoolCapacityOffset)
+	if effectivePoolCount > maxPoolCountForChannel {
+		return nil, fmt.Errorf(
+			"invalid effective pool count %d, cannot safely add %d for work connection pool capacity",
+			effectivePoolCount, workConnPoolCapacityOffset,
+		)
+	}
+	poolCount := int(effectivePoolCount)
 	ctl := &Control{
 		sessionCtx:    sessionCtx,
-		workConnCh:    make(chan *proxy.WorkConn, poolCount+10),
+		workConnCh:    make(chan *proxy.WorkConn, poolCount+workConnPoolCapacityOffset),
 		proxies:       make(map[string]proxy.Proxy),
 		poolCount:     poolCount,
 		portsUsedNum:  0,
@@ -794,6 +851,57 @@ func (ctl *Control) handleCloseProxy(m msg.Message) {
 	xl.Infof("close proxy [%s] success", inMsg.ProxyName)
 }
 
+// OnServerCommandResp registers fn to be invoked when the client responds to the
+// ServerCommand identified by reqID. The dispatcher handler for ServerCommandResp
+// is registered exactly once (via serverCmdHandlerOnce); subsequent calls only
+// insert into the pendingServerCmds map. The handler routes each response to the
+// callback stored under resp.RequestID and then evicts it, so concurrent commands
+// to the same client are kept separate.
+func (ctl *Control) OnServerCommandResp(reqID string, fn func(*msg.ServerCommandResp)) {
+	ctl.serverCmdHandlerOnce.Do(func() {
+		ctl.msgDispatcher.RegisterHandler(&msg.ServerCommandResp{}, func(m msg.Message) {
+			resp := m.(*msg.ServerCommandResp)
+			if resp.Result == "ok" {
+				// node_export 的 output 是含密码的分享链接明文，落入日志会泄露凭证，
+				// 故对此类敏感命令脱敏，仅记录命令名与 reqID。
+				if resp.Command == "node_export" {
+					ctl.xl.Infof("server command [%s] (reqID=%s) executed successfully on client", resp.Command, resp.RequestID)
+				} else {
+					// get_nodes / get_status / url_test_* 等高频常规查询命令的成功响应体
+					// 很大且频繁，打印 output 会刷屏，故静默（仅失败时仍告警）。
+					switch resp.Command {
+					case "get_nodes", "get_status", "url_test_node", "url_test_device":
+					default:
+						ctl.xl.Infof("server command [%s] (reqID=%s) executed successfully on client, output: %s", resp.Command, resp.RequestID, resp.Output)
+					}
+				}
+			} else {
+				ctl.xl.Warnf("server command [%s] (reqID=%s) failed on client: %s", resp.Command, resp.RequestID, resp.Output)
+			}
+			ctl.pendingServerCmdsMu.Lock()
+			cb, ok := ctl.pendingServerCmds[resp.RequestID]
+			delete(ctl.pendingServerCmds, resp.RequestID)
+			ctl.pendingServerCmdsMu.Unlock()
+			if ok {
+				cb(resp)
+			} else {
+				ctl.xl.Warnf("received ServerCommandResp for unknown reqID=%s (command=%s)", resp.RequestID, resp.Command)
+			}
+		})
+	})
+	ctl.pendingServerCmdsMu.Lock()
+	if ctl.pendingServerCmds == nil {
+		ctl.pendingServerCmds = make(map[string]func(*msg.ServerCommandResp))
+	}
+	ctl.pendingServerCmds[reqID] = fn
+	ctl.pendingServerCmdsMu.Unlock()
+}
+
+// SendCommand sends a ServerCommand message to frpc.
+func (ctl *Control) SendCommand(cmd *msg.ServerCommand) error {
+	return ctl.msgDispatcher.Send(cmd)
+}
+
 func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err error) {
 	var pxyConf v1.ProxyConfigurer
 	// Load configures from NewProxy message and validate.
@@ -821,6 +929,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		ServerCfg:          ctl.sessionCtx.ServerCfg,
 		EncryptionKey:      ctl.sessionCtx.EncryptionKey,
 		WireProtocol:       ctl.sessionCtx.WireProtocol,
+		UDPPacketCodec:     ctl.sessionCtx.UDPPacketCodec,
 	})
 	if err != nil {
 		return remoteAddr, err

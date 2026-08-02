@@ -12,167 +12,118 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package iplookup provides IP geolocation and ISP lookup via the cip.cc service.
+// Package iplookup provides IP geolocation and ISP lookup using a local ip2region xdb database.
 package iplookup
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
 )
 
-const (
-	cipCCURL     = "http://www.cip.cc/%s"
-	httpTimeout  = 5 * time.Second
-	cacheTTL     = 24 * time.Hour
-	maxCacheSize = 10000
-)
+//go:embed ip2region_v4.xdb
+var ip2regionData []byte
 
 // Result holds the geolocation and ISP information for an IP address.
 type Result struct {
-	Location string // e.g. "中国 重庆 重庆"
-	ISP      string // e.g. "联通"
+	Location string // e.g. "中国 江苏 南京"
+	ISP      string // e.g. "电信"
 }
 
-type cacheEntry struct {
-	result    Result
-	fetchedAt time.Time
-}
-
-// LookupService queries cip.cc for IP geolocation info with an in-memory cache.
+// LookupService queries the local ip2region xdb database for IP geolocation info.
 type LookupService struct {
-	mu    sync.RWMutex
-	cache map[string]cacheEntry
-
-	client *http.Client
+	mu       sync.Mutex
+	searcher *xdb.Searcher
 }
 
-// NewLookupService creates a new IP lookup service.
+// NewLookupService creates a new IP lookup service backed by the embedded ip2region database.
 func NewLookupService() *LookupService {
+	searcher, err := xdb.NewWithBuffer(xdb.IPv4, ip2regionData)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize ip2region searcher: %v", err))
+	}
 	return &LookupService{
-		cache: make(map[string]cacheEntry),
-		client: &http.Client{
-			Timeout: httpTimeout,
-		},
+		searcher: searcher,
 	}
 }
 
-// Lookup queries the geolocation and ISP info for the given IP address.
-// Results are cached for 24 hours. Private/reserved IPs are skipped.
-func (s *LookupService) Lookup(ctx context.Context, ip string) (Result, error) {
+// Lookup returns the geolocation and ISP info for the given IP address.
+// Private/reserved IPs return an empty result.
+func (s *LookupService) Lookup(_ context.Context, ip string) (Result, error) {
 	if ip == "" {
 		return Result{}, fmt.Errorf("empty ip")
 	}
 
-	// Skip private/reserved IPs
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil || isPrivateIP(parsedIP) {
 		return Result{}, nil
 	}
 
-	// Check cache
-	s.mu.RLock()
-	if entry, ok := s.cache[ip]; ok && time.Since(entry.fetchedAt) < cacheTTL {
-		s.mu.RUnlock()
-		return entry.result, nil
-	}
-	s.mu.RUnlock()
-
-	// Query cip.cc
-	result, err := s.queryCipCC(ctx, ip)
-	if err != nil {
-		return Result{}, err
+	// Only support IPv4
+	if parsedIP.To4() == nil {
+		return Result{}, nil
 	}
 
-	// Store in cache
+	// Searcher is not thread-safe, protect with mutex
 	s.mu.Lock()
-	if len(s.cache) >= maxCacheSize {
-		s.evictOldest()
-	}
-	s.cache[ip] = cacheEntry{result: result, fetchedAt: time.Now()}
+	region, err := s.searcher.Search(ip)
 	s.mu.Unlock()
-
-	return result, nil
-}
-
-func (s *LookupService) queryCipCC(ctx context.Context, ip string) (Result, error) {
-	url := fmt.Sprintf(cipCCURL, ip)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("ip2region search for %s: %w", ip, err)
 	}
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return Result{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return Result{}, fmt.Errorf("cip.cc returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	if err != nil {
-		return Result{}, err
-	}
-
-	return parseCipCCResponse(string(body)), nil
+	return parseRegion(region), nil
 }
 
-// parseCipCCResponse parses the plain-text response from cip.cc.
-// Format:
-//
-//	IP: 114.114.114.114
-//	地址    : 中国 江苏 南京
-//	运营商  : 南京信风网络科技有限公司GreatbitDNS服务器
-//	数据二  : 中国 江苏 南京 | 南京信风网络科技有限公司GreatbitDNS服务器
-//	数据三  : 中国 江苏省 南京市
-//	URL     : http://www.cip.cc/114.114.114.114
-func parseCipCCResponse(body string) Result {
-	var result Result
-	for line := range strings.SplitSeq(body, "\n") {
-		line = strings.TrimSpace(line)
-		if v, ok := extractField(line, "地址"); ok {
-			result.Location = v
-		} else if v, ok := extractField(line, "运营商"); ok {
-			result.ISP = v
-		}
+// parseRegion parses the ip2region result string.
+// Format: "国家|省份|城市|ISP|国家代码"
+// Example: "中国|江苏省|南京市|电信|CN"
+func parseRegion(region string) Result {
+	if region == "" {
+		return Result{}
 	}
-	return result
-}
 
-func extractField(line, prefix string) (string, bool) {
-	if !strings.HasPrefix(line, prefix) {
-		return "", false
+	parts := strings.Split(region, "|")
+	if len(parts) < 5 {
+		return Result{}
 	}
-	rest := strings.TrimPrefix(line, prefix)
-	rest = strings.TrimSpace(rest)
-	if !strings.HasPrefix(rest, ":") {
-		return "", false
-	}
-	value := strings.TrimPrefix(rest, ":")
-	return strings.TrimSpace(value), true
-}
 
-func (s *LookupService) evictOldest() {
-	var oldestKey string
-	var oldestTime time.Time
-	first := true
-	for k, v := range s.cache {
-		if first || v.fetchedAt.Before(oldestTime) {
-			oldestKey = k
-			oldestTime = v.fetchedAt
-			first = false
-		}
+	country := parts[0]
+	province := parts[1]
+	city := parts[2]
+	isp := parts[3]
+
+	// Replace "0" with empty (ip2region uses "0" for unknown fields)
+	if province == "0" {
+		province = ""
 	}
-	if oldestKey != "" {
-		delete(s.cache, oldestKey)
+	if city == "0" {
+		city = ""
+	}
+	if isp == "0" {
+		isp = ""
+	}
+
+	// Build location string: "国家 省份 城市" (deduplicate consecutive identical parts)
+	var locationParts []string
+	if country != "" && country != "0" {
+		locationParts = append(locationParts, country)
+	}
+	if province != "" && (len(locationParts) == 0 || locationParts[len(locationParts)-1] != province) {
+		locationParts = append(locationParts, province)
+	}
+	if city != "" && (len(locationParts) == 0 || locationParts[len(locationParts)-1] != city) {
+		locationParts = append(locationParts, city)
+	}
+
+	return Result{
+		Location: strings.Join(locationParts, " "),
+		ISP:      isp,
 	}
 }
 

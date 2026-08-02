@@ -30,7 +30,7 @@
           <div class="header-controls">
             <a
               class="github-link"
-              href="https://github.com/fatedier/frp"
+              href="https://github.com/laosan-xx/frp"
               target="_blank"
               aria-label="GitHub"
             >

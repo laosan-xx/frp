@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **快速上手先看 `PROJECT_INDEX.md`** —— 它是项目的架构地图与"改 X 去哪找"速查表，避免每次都全局重读代码。
+
 ## Development Commands
 
 ### Build

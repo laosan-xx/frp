@@ -177,3 +177,16 @@ type V2ProxyTrafficPointResp struct {
 	TrafficIn  int64  `json:"trafficIn"`
 	TrafficOut int64  `json:"trafficOut"`
 }
+
+// V2ClientCommandReq is the request body for sending a command to a client.
+type V2ClientCommandReq struct {
+	Command string `json:"command"`
+	Payload string `json:"payload"`
+}
+
+// V2ClientCommandResp is the response for a command execution on a client.
+type V2ClientCommandResp struct {
+	Command string `json:"command"`
+	Result  string `json:"result"`
+	Output  string `json:"output"`
+}

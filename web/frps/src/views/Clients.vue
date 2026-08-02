@@ -12,20 +12,27 @@
           <h1 class="page-title">{{ $t('clients.title') }}</h1>
           <p class="page-subtitle">{{ $t('clients.subtitle') }}</p>
         </div>
-        <div class="status-tabs">
-          <button
-            v-for="tab in statusTabs"
-            :key="tab.value"
-            class="status-tab"
-            :class="[tab.value, { active: statusFilter === tab.value }]"
-            @click="statusFilter = tab.value"
-          >
-            <span class="status-dot" :class="tab.value"></span>
-            <span class="tab-label">{{ tab.label }}</span>
-            <span v-if="tab.count !== null" class="tab-count">{{
-              tab.count
-            }}</span>
-          </button>
+        <div class="header-actions">
+          <div class="actions-section">
+            <ActionButton variant="outline" size="small" danger @click="showClearDialog = true">
+              {{ $t('clients.clearOffline') }}
+            </ActionButton>
+          </div>
+          <div class="status-tabs">
+            <button
+              v-for="tab in statusTabs"
+              :key="tab.value"
+              class="status-tab"
+              :class="[tab.value, { active: statusFilter === tab.value }]"
+              @click="statusFilter = tab.value"
+            >
+              <span class="status-dot" :class="tab.value"></span>
+              <span class="tab-label">{{ tab.label }}</span>
+              <span v-if="tab.count !== null" class="tab-count">{{
+                tab.count
+              }}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -47,6 +54,7 @@
           :key="client.key"
           :client="client"
           :index="index"
+          @delete="handleDeleteClient"
         />
       </div>
       <div v-else-if="!loading" class="empty-state">
@@ -67,18 +75,28 @@
         @size-change="onPageSizeChange"
       />
     </div>
+    <ConfirmDialog
+      v-model="showClearDialog"
+      :title="$t('clients.clearOfflineTitle')"
+      :message="$t('clients.clearOfflineMessage')"
+      :confirm-text="$t('clients.clearOfflineConfirm')"
+      danger
+      @confirm="handleClearConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { ElMessage, ElPagination } from 'element-plus'
+import { ElMessage, ElMessageBox, ElPagination } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import ActionButton from '@shared/components/ActionButton.vue'
+import ConfirmDialog from '@shared/components/ConfirmDialog.vue'
 import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
 import ClientCard from '../components/ClientCard.vue'
-import { getClientsV2 } from '../api/client'
+import { getClientsV2, deleteClientV2, clearOfflineClients } from '../api/client'
 
 const { t } = useI18n()
 const { isMobile } = useResponsive()
@@ -92,6 +110,7 @@ const statusFilter = ref<'all' | 'online' | 'offline'>(
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const showClearDialog = ref(false)
 
 let refreshTimer: number | null = null
 let searchDebounceTimer: number | null = null
@@ -192,6 +211,47 @@ const stopAutoRefresh = () => {
   }
 }
 
+const handleDeleteClient = async (client: Client) => {
+  try {
+    await ElMessageBox.confirm(
+      t('clients.deleteMessage'),
+      t('clients.deleteTitle'),
+      {
+        confirmButtonText: t('clients.deleteConfirm'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await deleteClientV2(client.key)
+    ElMessage({ message: t('clients.deleteSuccess'), type: 'success' })
+    fetchData(true)
+  } catch (err: any) {
+    ElMessage({
+      message: t('clients.deleteFailed', { msg: err.message }),
+      type: 'error',
+    })
+  }
+}
+
+const handleClearConfirm = async () => {
+  showClearDialog.value = false
+  try {
+    await clearOfflineClients()
+    ElMessage({ message: t('clients.clearSuccess'), type: 'success' })
+    fetchData()
+  } catch (err: any) {
+    ElMessage({
+      message: t('clients.clearFailed', { msg: err.message }),
+      type: 'warning',
+    })
+  }
+}
+
 watch(statusFilter, () => {
   resetPageAndFetch()
 })
@@ -255,6 +315,17 @@ onUnmounted(() => {
   font-size: 14px;
   color: var(--el-text-color-secondary);
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actions-section {
+  display: flex;
+  gap: 12px;
 }
 
 .status-tabs {
@@ -515,6 +586,17 @@ html.dark .m-orb-2 {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .actions-section {
+    order: 2;
   }
 
   .page-title {

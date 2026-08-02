@@ -350,6 +350,15 @@ func (svr *Service) loopLoginUntilSuccess(maxInterval time.Duration, firstLoginE
 		}
 		ctl.SetInWorkConnCallback(svr.handleWorkConnCb)
 
+		// Set command executor: use script if configured, otherwise use built-in executor.
+		if svr.common.RemoteCommandHandler != "" && svr.common.RemoteCommandHandler != "builtin" {
+			ctl.SetCommandExecutor(&scriptCommandExecutor{
+				scriptPath: svr.common.RemoteCommandHandler,
+			})
+		} else {
+			ctl.SetCommandExecutor(&builtinCommandExecutor{})
+		}
+
 		ctl.Run(proxyCfgs, visitorCfgs)
 		// close and replace previous control
 		svr.ctlMu.Lock()

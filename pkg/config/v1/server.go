@@ -96,6 +96,12 @@ type ServerConfig struct {
 	AllowPorts []types.PortsRange `json:"allowPorts,omitempty"`
 
 	HTTPPlugins []HTTPPluginOptions `json:"httpPlugins,omitempty"`
+
+	// GitHubToken specifies the GitHub personal access token used by the
+	// firmware API proxy to call GitHub API directly from the server side.
+	// This avoids rate limiting on shared proxies. When empty, requests are
+	// sent without authentication (60 req/h limit).
+	GitHubToken string `json:"githubToken,omitempty"`
 }
 
 func (c *ServerConfig) Complete() error {
@@ -167,7 +173,7 @@ type ServerTransportConfig struct {
 	// If negative, keep-alive probes are disabled.
 	TCPKeepAlive int64 `json:"tcpKeepalive,omitempty"`
 	// MaxPoolCount specifies the maximum pool size for each proxy. By default,
-	// this value is 5.
+	// this value is 5. Negative values are invalid.
 	MaxPoolCount int64 `json:"maxPoolCount,omitempty"`
 	// HeartBeatTimeout specifies the maximum time to wait for a heartbeat
 	// before terminating the connection. It is not recommended to change this
