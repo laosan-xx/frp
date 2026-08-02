@@ -1299,7 +1299,7 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 	}
 
 	var req struct {
-		WAN6  *bool `json:"wan6"`
+		WAN6  *bool  `json:"wan6"`
 		SSID  string `json:"ssid"`
 		Bands []struct {
 			Key     string `json:"key"`
