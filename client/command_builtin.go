@@ -1255,14 +1255,16 @@ func (e *builtinCommandExecutor) cmdGetSystem() (string, string) {
 	for i, b := range bands {
 		enabled := uciBoolEnabled(b.section + ".disabled")
 		ssid := uciGet(b.section + ".ssid")
+		password := uciGet(b.section + ".key")
 		if i == 0 {
 			firstSsid = ssid
 		}
 		bandOut = append(bandOut, map[string]any{
-			"key":     b.section,
-			"label":   b.label,
-			"enabled": enabled,
-			"ssid":    ssid,
+			"key":      b.section,
+			"label":    b.label,
+			"enabled":  enabled,
+			"ssid":     ssid,
+			"password": password,
 		})
 	}
 
@@ -1282,6 +1284,7 @@ func (e *builtinCommandExecutor) cmdGetSystem() (string, string) {
 //   - toggling the WAN6 interface via network.wan6.disabled
 //   - toggling 2.4G / 5G WiFi radio (disabled option)
 //   - renaming the WiFi SSID (ssid option)
+//   - setting the WiFi password (password option)
 //
 // Payload (all fields optional):
 //
@@ -1290,6 +1293,8 @@ func (e *builtinCommandExecutor) cmdGetSystem() (string, string) {
 //	  "wifi2g": true|false,   // enable/disable the 2.4G wifi-iface
 //	  "wifi5g": true|false,   // enable/disable the 5G wifi-iface
 //	  "ssid":   "MyWiFi"      // rename the SSID on both bands
+//	  "password": "secret"    // set the WPA key on both bands
+//	  "bands": [ { "key": "...", "enabled": bool, "ssid": "...", "password": "..." } ]
 //	}
 //
 // A field is only applied when present in the JSON.
@@ -1299,20 +1304,36 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 	}
 
 	var req struct {
-		WAN6  *bool  `json:"wan6"`
-		SSID  string `json:"ssid"`
-		Bands []struct {
-			Key     string `json:"key"`
-			Enabled *bool  `json:"enabled"`
+		WAN6     *bool  `json:"wan6"`
+		SSID     string `json:"ssid"`
+		Password string `json:"password"`
+		Bands    []struct {
+			Key      string `json:"key"`
+			Enabled  *bool  `json:"enabled"`
+			SSID     string `json:"ssid"`
+			Password string `json:"password"`
 		} `json:"bands"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "error", fmt.Sprintf("错误: 系统设置 JSON 解析失败: %v", err)
 	}
 
-	hasChange := req.WAN6 != nil || req.SSID != "" || len(req.Bands) > 0
+	hasChange := req.WAN6 != nil || req.SSID != "" || req.Password != "" || len(req.Bands) > 0
 	if !hasChange {
 		return "error", "错误: 未提供任何修改项"
+	}
+
+	// Validate WiFi password length per WPA/WPA2 spec (8..63 printable ASCII).
+	validatePassword := func(pw string) error {
+		if len(pw) < 8 || len(pw) > 63 {
+			return fmt.Errorf("错误: WiFi 密码长度需在 8-63 个字符之间")
+		}
+		return nil
+	}
+	if req.Password != "" {
+		if err := validatePassword(req.Password); err != nil {
+			return "error", err.Error()
+		}
 	}
 
 	var changes []string
@@ -1361,9 +1382,26 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 				uciSet(section+".disabled", disabled)
 				changes = append(changes, fmt.Sprintf("%s WiFi=%s", label, state))
 			}
-			if req.SSID != "" {
-				uciSet(section+".ssid", req.SSID)
-				changes = append(changes, fmt.Sprintf("%s SSID=%s", label, req.SSID))
+			// Per-band SSID wins over the shared ssid; the shared one still
+			// applies to bands that did not specify their own.
+			ssid := req.SSID
+			if band.SSID != "" {
+				ssid = band.SSID
+			}
+			if ssid != "" {
+				uciSet(section+".ssid", ssid)
+				changes = append(changes, fmt.Sprintf("%s SSID=%s", label, ssid))
+			}
+			pw := req.Password
+			if band.Password != "" {
+				pw = band.Password
+			}
+			if pw != "" {
+				if err := validatePassword(pw); err != nil {
+					return "error", err.Error()
+				}
+				uciSet(section+".key", pw)
+				changes = append(changes, fmt.Sprintf("%s 密码已更新", label))
 			}
 		}
 

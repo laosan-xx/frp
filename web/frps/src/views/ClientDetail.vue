@@ -426,10 +426,10 @@
                   </span>
                   <div class="ssid-input-row">
                     <el-select
-                      v-model="ssidTarget"
+                      v-model="target"
                       class="ssid-target-select"
                       :placeholder="$t('clientDetail.sysSsidTargetAll')"
-                      @change="onSsidTargetChange"
+                      @change="onTargetChange"
                     >
                       <el-option :label="$t('clientDetail.sysSsidTargetAll')" value="all" />
                       <el-option
@@ -445,14 +445,24 @@
                       :placeholder="$t('clientDetail.sysSsidPlaceholder')"
                       clearable
                       maxlength="32"
-                      @keyup.enter="sendSsidChange"
+                      @keyup.enter="sendWifiChange"
+                    />
+                    <el-input
+                      v-model="systemPassword"
+                      class="ssid-input"
+                      type="password"
+                      show-password
+                      :placeholder="$t('clientDetail.sysPasswordPlaceholder')"
+                      clearable
+                      maxlength="63"
+                      @keyup.enter="sendWifiChange"
                     />
                     <el-button
                       class="ssid-send-btn"
                       type="primary"
                       :loading="ssidSending"
-                      :disabled="!systemSsid.trim()"
-                      @click="sendSsidChange"
+                      :disabled="!systemSsid.trim() && !systemPassword.trim()"
+                      @click="sendWifiChange"
                     >
                       {{ $t('clientDetail.send') }}
                     </el-button>
@@ -786,11 +796,13 @@ const frpUser = ref('')
 const isModifySystem = computed(() => selectedPreset.value === 'modify_system')
 const systemWan6 = ref(true)
 // systemBands: dynamically discovered WiFi bands (2.4G / 5G / 5.8G / ...).
-// Each: { key, label, enabled, loading }
-const systemBands = ref<{ key: string; label: string; enabled: boolean; loading: boolean; ssid: string }[]>([])
+// Each: { key, label, enabled, loading, ssid, password }
+const systemBands = ref<{ key: string; label: string; enabled: boolean; loading: boolean; ssid: string; password: string }[]>([])
 const systemSsid = ref('')
-// ssidTarget: "all" applies to every band; otherwise a specific band key.
-const ssidTarget = ref('all')
+// WiFi password state, mirroring the SSID controls.
+const systemPassword = ref('')
+// target: "all" applies to every band; otherwise a specific band key.
+const target = ref('all')
 const wan6Loading = ref(false)
 const systemLoading = ref(false)
 
@@ -851,7 +863,8 @@ const onPresetChange = (value: string) => {
   systemWan6.value = true
   systemBands.value = []
   systemSsid.value = ''
-  ssidTarget.value = 'all'
+  systemPassword.value = ''
+  target.value = 'all'
   wan6Loading.value = false
   resetFirmwareWizard()
   if (value === CUSTOM_PRESET) {
@@ -1444,35 +1457,51 @@ const runSysupgrade = async () => {
   }
 }
 
-// Send only the WiFi SSID rename (the button sits right after the SSID input).
-// When a specific WiFi band is picked, load its current name into the input box.
-const onSsidTargetChange = (key: string) => {
+// When a specific WiFi band is picked, load its current name and password into
+// the input boxes from the cached values (already fetched via get_system).
+const onTargetChange = (key: string) => {
   if (key === 'all') {
     systemSsid.value = ''
+    systemPassword.value = ''
     return
   }
   const band = systemBands.value.find((b) => b.key === key)
   systemSsid.value = band && band.ssid ? band.ssid : ''
+  systemPassword.value = band && band.password ? band.password : ''
 }
 // Applied to every band, or just the band chosen in the dropdown.
 const ssidSending = ref(false)
-const sendSsidChange = async () => {
+const sendWifiChange = async () => {
   if (!client.value) return
   const ssid = systemSsid.value.trim()
-  if (!ssid) return
+  const password = systemPassword.value.trim()
+  if (!ssid && !password) return
   ssidSending.value = true
   commandResp.value = null
   try {
     const bands =
-      ssidTarget.value === 'all'
+      target.value === 'all'
         ? systemBands.value.map((b) => ({ key: b.key }))
-        : [{ key: ssidTarget.value }]
+        : [{ key: target.value }]
+    // Build the payload: send ssid/password only when provided.
+    const payload: any = { bands }
+    if (ssid) payload.ssid = ssid
+    if (password) payload.password = password
     const resp = await sendClientCommand(client.value.key, {
       command: 'modify_system',
-      payload: JSON.stringify({ ssid, bands }),
+      payload: JSON.stringify(payload),
     })
     commandResp.value = resp
     if (resp.result === 'ok') {
+      // Update the local cache so switching bands shows the new value.
+      systemBands.value = systemBands.value.map((b) => {
+        if (target.value !== 'all' && b.key !== target.value) return b
+        return {
+          ...b,
+          ssid: ssid ? ssid : b.ssid,
+          password: password ? password : b.password,
+        }
+      })
       ElMessage.success(t('clientDetail.commandSuccess'))
     } else {
       ElMessage.error(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
@@ -1556,6 +1585,7 @@ const fetchSystemSettings = async () => {
           enabled: !!b.enabled,
           loading: false,
           ssid: b.ssid || '',
+          password: b.password || '',
         }))
       }
       // Also query default-password state.
