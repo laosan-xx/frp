@@ -11,8 +11,8 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/pkg/config/source"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/config/source"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 type failingConnector struct {

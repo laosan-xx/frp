@@ -20,7 +20,7 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/fatedier/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
 )
 
 type ReadWriter interface {

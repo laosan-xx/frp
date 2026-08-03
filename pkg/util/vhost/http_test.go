@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	httppkg "github.com/fatedier/frp/pkg/util/http"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 )
 
 func TestHTTPServerProtocols(t *testing.T) {

@@ -17,7 +17,7 @@ package v1
 import (
 	"maps"
 
-	"github.com/fatedier/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/util/util"
 )
 
 type AuthScope string

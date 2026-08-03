@@ -24,11 +24,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fatedier/frp/client/configmgmt"
-	"github.com/fatedier/frp/client/http/model"
-	"github.com/fatedier/frp/client/proxy"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/jsonx"
+	"github.com/laosan-xx/frp/client/configmgmt"
+	"github.com/laosan-xx/frp/client/http/model"
+	"github.com/laosan-xx/frp/client/proxy"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/jsonx"
 )
 
 // Controller handles HTTP API requests for frpc.

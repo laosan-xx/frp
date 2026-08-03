@@ -19,10 +19,10 @@ import (
 	"strings"
 	"testing"
 
-	configtypes "github.com/fatedier/frp/pkg/config/types"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/metrics/mem"
-	"github.com/fatedier/frp/server/http/model"
+	configtypes "github.com/laosan-xx/frp/pkg/config/types"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/metrics/mem"
+	"github.com/laosan-xx/frp/server/http/model"
 )
 
 func TestBuildV2ProxySpecAllTypesAndRedaction(t *testing.T) {

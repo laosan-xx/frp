@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fatedier/frp/pkg/util/jsonx"
+	"github.com/laosan-xx/frp/pkg/util/jsonx"
 )
 
 type DecodeOptions struct {

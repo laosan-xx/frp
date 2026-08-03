@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/proto/wire"
-	"github.com/fatedier/frp/server/registry"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/server/registry"
 )
 
 func TestGetConfFromConfigurerKeepsPluginFields(t *testing.T) {

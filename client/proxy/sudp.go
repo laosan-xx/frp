@@ -25,10 +25,10 @@ import (
 
 	"github.com/fatedier/golib/errors"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/proto/udp"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/proto/udp"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )
 
 func init() {

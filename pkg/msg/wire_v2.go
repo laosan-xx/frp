@@ -21,7 +21,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/fatedier/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
 )
 
 const (

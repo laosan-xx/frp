@@ -20,9 +20,9 @@ import (
 
 	"k8s.io/utils/clock"
 
-	"github.com/fatedier/frp/pkg/util/log"
-	"github.com/fatedier/frp/pkg/util/metric"
-	server "github.com/fatedier/frp/server/metrics"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/pkg/util/metric"
+	server "github.com/laosan-xx/frp/server/metrics"
 )
 
 var (

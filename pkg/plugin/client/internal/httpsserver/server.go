@@ -24,8 +24,8 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/pkg/transport"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/transport"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 )
 
 func New(handler http.Handler, crtPath, keyPath string, enableHTTP2 *bool) (*http.Server, error) {

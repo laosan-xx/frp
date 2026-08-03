@@ -29,16 +29,16 @@ import (
 	"github.com/fatedier/golib/net/mux"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fatedier/frp/pkg/auth"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	plugin "github.com/fatedier/frp/pkg/plugin/server"
-	"github.com/fatedier/frp/pkg/proto/wire"
-	"github.com/fatedier/frp/pkg/util/util"
-	"github.com/fatedier/frp/server/controller"
-	"github.com/fatedier/frp/server/proxy"
-	"github.com/fatedier/frp/server/registry"
-	"github.com/fatedier/frp/server/visitor"
+	"github.com/laosan-xx/frp/pkg/auth"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	plugin "github.com/laosan-xx/frp/pkg/plugin/server"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/server/controller"
+	"github.com/laosan-xx/frp/server/proxy"
+	"github.com/laosan-xx/frp/server/registry"
+	"github.com/laosan-xx/frp/server/visitor"
 )
 
 func TestWriteWithDeadlineTimesOutAndClearsDeadline(t *testing.T) {

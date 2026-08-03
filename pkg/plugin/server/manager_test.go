@@ -25,8 +25,8 @@ import (
 
 	goliblog "github.com/fatedier/golib/log"
 
-	"github.com/fatedier/frp/pkg/msg"
-	frplog "github.com/fatedier/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/pkg/msg"
+	frplog "github.com/laosan-xx/frp/pkg/util/log"
 )
 
 type testPlugin struct {

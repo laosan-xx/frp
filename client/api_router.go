@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"sync"
 
-	adminapi "github.com/fatedier/frp/client/http"
-	"github.com/fatedier/frp/client/proxy"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/log"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/util"
+	adminapi "github.com/laosan-xx/frp/client/http"
+	"github.com/laosan-xx/frp/client/proxy"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/util"
 )
 
 // clientCaptchaStore stores captcha codes temporarily for client admin API.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 type ProxyDefinition struct {

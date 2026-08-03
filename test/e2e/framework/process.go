@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fatedier/frp/pkg/config"
-	flog "github.com/fatedier/frp/pkg/util/log"
-	"github.com/fatedier/frp/test/e2e/framework/consts"
-	"github.com/fatedier/frp/test/e2e/pkg/process"
+	"github.com/laosan-xx/frp/pkg/config"
+	flog "github.com/laosan-xx/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/test/e2e/framework/consts"
+	"github.com/laosan-xx/frp/test/e2e/pkg/process"
 )
 
 // RunProcesses starts one frps and zero or more frpc processes from templates.

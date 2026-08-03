@@ -26,13 +26,13 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/fatedier/frp/pkg/auth"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/proto/wire"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/version"
-	"github.com/fatedier/frp/pkg/vnet"
+	"github.com/laosan-xx/frp/pkg/auth"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/version"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 type controlSessionDialer struct {

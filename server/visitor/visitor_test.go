@@ -21,8 +21,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fatedier/frp/pkg/proto/wire"
-	"github.com/fatedier/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/util/util"
 )
 
 func TestManagerNewConnCarriesWireProtocolAndUDPPacketCodec(t *testing.T) {

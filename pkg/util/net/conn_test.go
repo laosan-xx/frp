@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fatedier/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
 )
 
 func TestNewAEADCryptoReadWriterRoundTrip(t *testing.T) {

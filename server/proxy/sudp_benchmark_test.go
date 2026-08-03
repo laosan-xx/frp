@@ -21,8 +21,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
 )
 
 type sudpPathBenchmarkCase struct {

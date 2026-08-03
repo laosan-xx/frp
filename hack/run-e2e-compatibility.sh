@@ -92,7 +92,7 @@ resolve_versions() {
         exit 1
     fi
 
-    releaseURL="https://api.github.com/repos/fatedier/frp/releases?per_page=100"
+    releaseURL="https://api.github.com/repos/laosan-xx/frp/releases?per_page=100"
     resolvedVersions=""
     if releases=$(github_api_curl "${releaseURL}" 2>/dev/null); then
         resolvedVersions=$(printf "%s\n" "${releases}" |
@@ -106,7 +106,7 @@ resolve_versions() {
     fi
 
     if [ -z "${resolvedVersions}" ]; then
-        releasesPageURL="https://github.com/fatedier/frp/releases"
+        releasesPageURL="https://github.com/laosan-xx/frp/releases"
         if ! releases=$(curl -fsSL "${releasesPageURL}"); then
             echo "Failed to fetch release metadata from GitHub: ${releasesPageURL}" >&2
             echo "Set FRP_COMPAT_BASELINE_VERSIONS to run with explicit baseline versions." >&2

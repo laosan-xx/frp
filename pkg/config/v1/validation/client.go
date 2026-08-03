@@ -22,9 +22,9 @@ import (
 
 	"github.com/samber/lo"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/policy/featuregate"
-	"github.com/fatedier/frp/pkg/policy/security"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/policy/featuregate"
+	"github.com/laosan-xx/frp/pkg/policy/security"
 )
 
 func (v *ConfigValidator) ValidateClientCommonConfig(c *v1.ClientCommonConfig) (Warning, error) {

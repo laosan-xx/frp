@@ -19,7 +19,7 @@ package client
 import (
 	"net/http/httputil"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 func init() {

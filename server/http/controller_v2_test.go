@@ -26,13 +26,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/fatedier/frp/pkg/config/types"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/metrics/mem"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/server/http/model"
-	serverproxy "github.com/fatedier/frp/server/proxy"
-	"github.com/fatedier/frp/server/registry"
+	"github.com/laosan-xx/frp/pkg/config/types"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/metrics/mem"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/server/http/model"
+	serverproxy "github.com/laosan-xx/frp/server/proxy"
+	"github.com/laosan-xx/frp/server/registry"
 )
 
 type v2EnvelopeForTest[T any] struct {

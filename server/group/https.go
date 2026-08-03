@@ -18,7 +18,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/fatedier/frp/pkg/util/vhost"
+	"github.com/laosan-xx/frp/pkg/util/vhost"
 )
 
 type HTTPSGroupController struct {

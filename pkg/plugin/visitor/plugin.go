@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"net"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/vnet"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 // PluginContext provides the necessary context and callbacks for visitor plugins.

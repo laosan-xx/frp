@@ -6,13 +6,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/fatedier/frp/client/configmgmt"
-	"github.com/fatedier/frp/client/proxy"
-	"github.com/fatedier/frp/pkg/config"
-	"github.com/fatedier/frp/pkg/config/source"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/config/v1/validation"
-	"github.com/fatedier/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/client/configmgmt"
+	"github.com/laosan-xx/frp/client/proxy"
+	"github.com/laosan-xx/frp/pkg/config"
+	"github.com/laosan-xx/frp/pkg/config/source"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/config/v1/validation"
+	"github.com/laosan-xx/frp/pkg/util/log"
 )
 
 type serviceConfigManager struct {

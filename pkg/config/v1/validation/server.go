@@ -20,7 +20,7 @@ import (
 
 	"github.com/samber/lo"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 func (v *ConfigValidator) ValidateServerConfig(c *v1.ServerConfig) (Warning, error) {

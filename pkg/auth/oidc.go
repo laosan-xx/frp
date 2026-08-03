@@ -29,9 +29,9 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/config/v1/validation"
-	"github.com/fatedier/frp/pkg/msg"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/config/v1/validation"
+	"github.com/laosan-xx/frp/pkg/msg"
 )
 
 // createOIDCHTTPClient creates an HTTP client with custom TLS and proxy configuration for OIDC token requests

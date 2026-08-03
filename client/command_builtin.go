@@ -34,7 +34,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fatedier/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/pkg/util/log"
 )
 
 // builtinCommandExecutor implements CommandExecutor with built-in command handlers.

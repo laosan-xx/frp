@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"net"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/util/tcpmux"
-	"github.com/fatedier/frp/pkg/util/vhost"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/util/tcpmux"
+	"github.com/laosan-xx/frp/pkg/util/vhost"
 )
 
 // TCPMuxGroupCtl manages all TCPMuxGroups.

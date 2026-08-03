@@ -25,10 +25,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/proto/wire"
-	"github.com/fatedier/frp/pkg/util/xlog"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
 )
 
 func TestSUDPBridgeTranscodesProxyV1ToVisitorV2(t *testing.T) {

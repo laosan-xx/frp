@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fatedier/frp/client/configmgmt"
-	"github.com/fatedier/frp/pkg/config/source"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/client/configmgmt"
+	"github.com/laosan-xx/frp/pkg/config/source"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 func newTestRawTCPProxyConfig(name string) *v1.TCPProxyConfig {

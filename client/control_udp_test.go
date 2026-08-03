@@ -25,11 +25,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	clientproxy "github.com/fatedier/frp/client/proxy"
-	"github.com/fatedier/frp/pkg/auth"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/proto/wire"
+	clientproxy "github.com/laosan-xx/frp/client/proxy"
+	"github.com/laosan-xx/frp/pkg/auth"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/proto/wire"
 )
 
 func TestControlPropagatesBinaryUDPPacketCodecToWorkConn(t *testing.T) {

@@ -21,11 +21,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fatedier/frp/pkg/config"
-	"github.com/fatedier/frp/pkg/config/source"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/config/v1/validation"
-	"github.com/fatedier/frp/pkg/policy/security"
+	"github.com/laosan-xx/frp/pkg/config"
+	"github.com/laosan-xx/frp/pkg/config/source"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/config/v1/validation"
+	"github.com/laosan-xx/frp/pkg/policy/security"
 )
 
 var proxyTypes = []v1.ProxyType{

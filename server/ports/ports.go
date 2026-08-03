@@ -9,7 +9,7 @@ import (
 
 	"k8s.io/utils/clock"
 
-	"github.com/fatedier/frp/pkg/config/types"
+	"github.com/laosan-xx/frp/pkg/config/types"
 )
 
 const (

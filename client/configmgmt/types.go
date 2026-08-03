@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fatedier/frp/client/proxy"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/client/proxy"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 var (

@@ -14,7 +14,7 @@
 
 package source
 
-import v1 "github.com/fatedier/frp/pkg/config/v1"
+import v1 "github.com/laosan-xx/frp/pkg/config/v1"
 
 // ConfigSource implements Source for in-memory configuration.
 // All operations are thread-safe.

@@ -5,7 +5,7 @@ package frps
 import (
 	"embed"
 
-	"github.com/fatedier/frp/assets"
+	"github.com/laosan-xx/frp/assets"
 )
 
 //go:embed dist

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/log"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/log"
 )
 
 // downloadProxy is the GitHub download proxy for Chinese clients.

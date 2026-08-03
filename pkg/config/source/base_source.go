@@ -17,7 +17,7 @@ package source
 import (
 	"sync"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 )
 
 // baseSource provides shared state and behavior for Source implementations.

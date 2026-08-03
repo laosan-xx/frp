@@ -22,17 +22,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatedier/frp/pkg/config/types"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/metrics/mem"
-	"github.com/fatedier/frp/pkg/msg"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
-	"github.com/fatedier/frp/pkg/util/iplookup"
-	"github.com/fatedier/frp/pkg/util/log"
-	"github.com/fatedier/frp/pkg/util/version"
-	"github.com/fatedier/frp/server/http/model"
-	"github.com/fatedier/frp/server/proxy"
-	"github.com/fatedier/frp/server/registry"
+	"github.com/laosan-xx/frp/pkg/config/types"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/metrics/mem"
+	"github.com/laosan-xx/frp/pkg/msg"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/pkg/util/iplookup"
+	"github.com/laosan-xx/frp/pkg/util/log"
+	"github.com/laosan-xx/frp/pkg/util/version"
+	"github.com/laosan-xx/frp/server/http/model"
+	"github.com/laosan-xx/frp/server/proxy"
+	"github.com/laosan-xx/frp/server/registry"
 )
 
 type Controller struct {

@@ -12,11 +12,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/fatedier/frp/client/configmgmt"
-	"github.com/fatedier/frp/client/http/model"
-	"github.com/fatedier/frp/client/proxy"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/laosan-xx/frp/client/configmgmt"
+	"github.com/laosan-xx/frp/client/http/model"
+	"github.com/laosan-xx/frp/client/proxy"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 )
 
 type fakeConfigManager struct {

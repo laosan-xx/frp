@@ -19,8 +19,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/policy/security"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/policy/security"
 )
 
 const (

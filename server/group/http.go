@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/fatedier/frp/pkg/util/vhost"
+	"github.com/laosan-xx/frp/pkg/util/vhost"
 )
 
 // HTTPGroupController manages HTTP groups that use round-robin

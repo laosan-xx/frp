@@ -24,15 +24,15 @@ import (
 
 	libio "github.com/fatedier/golib/io"
 
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/fatedier/frp/pkg/msg"
-	"github.com/fatedier/frp/pkg/naming"
-	plugin "github.com/fatedier/frp/pkg/plugin/visitor"
-	"github.com/fatedier/frp/pkg/transport"
-	netpkg "github.com/fatedier/frp/pkg/util/net"
-	"github.com/fatedier/frp/pkg/util/util"
-	"github.com/fatedier/frp/pkg/util/xlog"
-	"github.com/fatedier/frp/pkg/vnet"
+	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/laosan-xx/frp/pkg/naming"
+	plugin "github.com/laosan-xx/frp/pkg/plugin/visitor"
+	"github.com/laosan-xx/frp/pkg/transport"
+	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/laosan-xx/frp/pkg/vnet"
 )
 
 // Helper wraps some functions for visitor to use.
