@@ -205,6 +205,12 @@ func (cm *ControlManager) Activate(ctl *Control) (bool, error) {
 	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
 		remoteAddr = host
 	}
+	// Prefer the client's self-reported outbound address when it disagrees with
+	// the server-observed RemoteAddr. This matters when frps is behind a reverse
+	// proxy (e.g. nginx) and only sees the proxy address (e.g. 127.0.0.1).
+	if loginMsg.ClientAddr != "" && loginMsg.ClientAddr != remoteAddr {
+		remoteAddr = loginMsg.ClientAddr
+	}
 	_, conflict := cm.registry.RegisterWithControlID(
 		loginMsg.User,
 		loginMsg.ClientID,

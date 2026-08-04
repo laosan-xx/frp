@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -124,7 +126,52 @@ func (d *controlSessionDialer) buildLoginMsg(previousRunID string) (*msg.Login, 
 	if err := d.auth.Setter.SetLogin(loginMsg); err != nil {
 		return nil, err
 	}
+
+	// Report the client's own outbound address. When frps is behind a reverse
+	// proxy (e.g. nginx), the server only sees the proxy address (127.0.0.1),
+	// so the client sends its real outbound IP for the server to compare against.
+	if clientAddr := publicIP(); clientAddr != "" {
+		loginMsg.ClientAddr = clientAddr
+	}
 	return loginMsg, nil
+}
+
+// publicIP returns the client's public IP address (the IP assigned by the ISP)
+// by querying external services. This is useful when frps is behind a reverse
+// proxy and cannot see the client's real public IP.
+func publicIP() string {
+	// Try multiple services for reliability
+	services := []string{
+		"https://api.ipify.org",
+		"https://ifconfig.me",
+		"https://ipinfo.io/ip",
+	}
+	// Explicitly disable proxy to get the real public IP of this machine,
+	// not the proxy server's IP.
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+		Transport: &http.Transport{
+			Proxy: nil,
+		},
+	}
+	for _, url := range services {
+		resp, err := client.Get(url)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				continue
+			}
+			ip := strings.TrimSpace(string(body))
+			if net.ParseIP(ip) != nil {
+				return ip
+			}
+		}
+	}
+	return ""
 }
 
 type loginExchangeResult struct {

@@ -94,6 +94,12 @@ type Login struct {
 
 	// Some global configures.
 	PoolCount int `json:"pool_count,omitempty"`
+
+	// ClientAddr is the client's own view of its outbound IP address. When frps
+	// sits behind a reverse proxy (e.g. nginx), the server side RemoteAddr may
+	// only see the proxy's address (e.g. 127.0.0.1). The client reports its real
+	// outbound address so the server can prefer it when the two disagree.
+	ClientAddr string `json:"client_addr,omitempty"`
 }
 
 type LoginResp struct {

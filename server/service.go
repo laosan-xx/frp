@@ -590,6 +590,11 @@ func (svr *Service) asyncLookupClientIP(ctl *Control) {
 	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
 		remoteAddr = host
 	}
+	// Prefer the client's self-reported public IP when it disagrees with the
+	// server-observed RemoteAddr (e.g. behind nginx reverse proxy).
+	if loginMsg.ClientAddr != "" && loginMsg.ClientAddr != remoteAddr {
+		remoteAddr = loginMsg.ClientAddr
+	}
 	if remoteAddr == "" {
 		return
 	}
