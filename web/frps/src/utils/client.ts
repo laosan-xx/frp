@@ -10,6 +10,7 @@ export class Client {
   wireProtocol: string
   hostname: string
   ip: string
+  connIP: string
   ipLocation: string
   ipIsp: string
   firstConnectedAt: Date
@@ -27,6 +28,7 @@ export class Client {
     this.wireProtocol = data.wireProtocol || ''
     this.hostname = data.hostname
     this.ip = data.clientIP || ''
+    this.connIP = data.connIP || data.clientIP || ''
     this.ipLocation = data.ipLocation || ''
     this.ipIsp = data.ipIsp || ''
     this.firstConnectedAt = new Date(data.firstConnectedAt * 1000)

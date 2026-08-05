@@ -71,6 +71,8 @@ func (e *builtinCommandExecutor) Execute(command, payload string) (result, outpu
 		return e.cmdModifySystem(payload)
 	case "get_system":
 		return e.cmdGetSystem()
+	case "get_frp":
+		return e.cmdGetFrp()
 	case "get_default_password":
 		return e.cmdGetDefaultPassword()
 	case "set_default_password":
@@ -856,12 +858,17 @@ func passwallIsRunning() bool {
 // cmdModifyFrp modifies the frp client configuration via uci (OpenWrt).
 // The payload is a JSON object with optional fields:
 //
-//	{"user": "newUser", "serverAddr": "1.2.3.4", "serverPort": 7000}
+//	{"user": "newUser", "serverAddr": "1.2.3.4", "serverPort": 7000,
+//	 "protocol": "websocket", "tls_enable": true}
 //
 // It modifies /etc/config/frpc (UCI format, section 'common') and then
 // restarts frpc in a goroutine. The response is returned BEFORE the restart
 // completes, because restarting frpc tears down the control connection
 // that would otherwise carry the response back to frps.
+//
+// When protocol is "wss", the client connection is already TLS-encrypted, so
+// the tls_enable option is removed from the config (equivalent to commenting
+// it out) to avoid conflicting with the wss transport.
 func (e *builtinCommandExecutor) cmdModifyFrp(payload string) (string, string) {
 	if payload == "" {
 		return "error", "错误: 请输入Frp配置"
@@ -871,6 +878,8 @@ func (e *builtinCommandExecutor) cmdModifyFrp(payload string) (string, string) {
 		User       string `json:"user"`
 		ServerAddr string `json:"serverAddr"`
 		ServerPort int    `json:"serverPort"`
+		Protocol   string `json:"protocol"`
+		TLSEnable  *bool  `json:"tls_enable"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		// Backwards compat: treat plain string as username only.
@@ -900,6 +909,27 @@ func (e *builtinCommandExecutor) cmdModifyFrp(payload string) (string, string) {
 		changes = append(changes, fmt.Sprintf("用户名=%s", req.User))
 	}
 
+	// Protocol: websocket or wss. Only write when a valid value is provided.
+	if req.Protocol == "websocket" || req.Protocol == "wss" {
+		uciSet("frpc.common.protocol", req.Protocol)
+		changes = append(changes, fmt.Sprintf("协议=%s", req.Protocol))
+	}
+
+	// TLS encryption. When protocol is wss the connection is already
+	// encrypted, so we remove the tls_enable option (comment it out) instead
+	// of writing it. Otherwise write it from the provided value.
+	if req.Protocol == "wss" {
+		uciDelete("frpc.common.tls_enable")
+		changes = append(changes, "TLS加密=已注释(wss已加密)")
+	} else if req.TLSEnable != nil {
+		tlsVal := "false"
+		if *req.TLSEnable {
+			tlsVal = "true"
+		}
+		uciSet("frpc.common.tls_enable", tlsVal)
+		changes = append(changes, fmt.Sprintf("TLS加密=%s", tlsVal))
+	}
+
 	if len(changes) == 0 {
 		return "error", "错误: 未提供任何修改项"
 	}
@@ -917,6 +947,65 @@ func (e *builtinCommandExecutor) cmdModifyFrp(payload string) (string, string) {
 	}()
 
 	return "ok", fmt.Sprintf("已修改Frp配置: %s，frpc 即将重启", strings.Join(changes, ", "))
+}
+
+// cmdGetFrp reads the current frp client configuration from UCI
+// (/etc/config/frpc, section 'common') and returns it as JSON so the frps
+// dashboard can prefill the Frp config form with the client's actual values.
+//
+// The tls_enable option is only reported when the protocol is not "wss": when
+// the connection uses wss it is already TLS-encrypted and the option is left
+// unset (commented out) in the config.
+//
+// Output JSON shape:
+//
+//	{
+//	  "serverAddr": "1.2.3.4",
+//	  "serverPort": 7000,
+//	  "user": "xxx",
+//	  "protocol": "websocket",
+//	  "tlsEnable": true
+//	}
+func (e *builtinCommandExecutor) cmdGetFrp() (string, string) {
+	addr := strings.TrimSpace(uciGet("frpc.common.server_addr"))
+	portStr := strings.TrimSpace(uciGet("frpc.common.server_port"))
+	user := strings.TrimSpace(uciGet("frpc.common.user"))
+	protocol := strings.TrimSpace(uciGet("frpc.common.protocol"))
+	if protocol == "" {
+		protocol = "websocket"
+	}
+
+	out := map[string]any{
+		"serverAddr": addr,
+		"user":       user,
+		"protocol":   protocol,
+	}
+
+	if portStr != "" {
+		if p, err := strconv.Atoi(portStr); err == nil {
+			out["serverPort"] = p
+		}
+	}
+
+	// Report tls_enable only when the protocol is not wss (the option is
+	// unset/removed for wss because wss is already encrypted).
+	// NOTE: tls_enable is a direct boolean ('true'/'false'), not an inverted
+	// "disabled" option, so we must parse the raw string rather than reusing
+	// uciBoolEnabled (which treats "false" as enabled).
+	// When the option is not configured on the client at all, we omit the
+	// field entirely so the dashboard can show "no selection" instead of
+	// defaulting to enabled/disabled.
+	if protocol != "wss" {
+		if raw := strings.TrimSpace(uciGet("frpc.common.tls_enable")); raw != "" {
+			out["tlsEnable"] = uciGetBool("frpc.common.tls_enable", true)
+		}
+	}
+
+	jsonBytes, err := json.Marshal(out)
+	if err != nil {
+		return "error", fmt.Sprintf("JSON 序列化失败: %v", err)
+	}
+	return "ok", string(jsonBytes)
 }
 
 // cmdModifySystem handles network/wireless tunables on OpenWrt:
@@ -942,6 +1031,25 @@ func uciBoolEnabled(key string) bool {
 		return true
 	}
 	return false
+}
+
+// uciGetBool reads a direct boolean UCI option (expected values 'true'/'false',
+// '1'/'0', 'on'/'off') and returns it. It differs from uciBoolEnabled, which
+// interprets the value as an inverted "disabled" flag. Use uciGetBool for
+// options whose value IS the boolean (e.g. frpc's tls_enable). When the option
+// is unset, def is returned.
+func uciGetBool(key string, def bool) bool {
+	v := strings.TrimSpace(uciGet(key))
+	if v == "" {
+		return def
+	}
+	switch v {
+	case "1", "true", "on", "yes":
+		return true
+	case "0", "false", "off", "no":
+		return false
+	}
+	return def
 }
 
 // wifiBand groups a wifi-iface uci section together with a human label.

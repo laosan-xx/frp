@@ -100,13 +100,13 @@
                 v-if="predefinedCommands.length > 0"
                 v-model="selectedPreset"
                 class="command-radio-group"
-                size="medium"
+                size="default"
                 @change="onPresetChange"
               >
                 <el-radio-button
                   v-for="cmd in predefinedCommands"
                   :key="cmd.value"
-                  :label="cmd.value"
+                  :value="cmd.value"
                 >
                   {{ $t('clientDetail.' + cmd.label) }}
                 </el-radio-button>
@@ -141,18 +141,23 @@
                     <span class="result-label">IP:</span>
                     <template v-if="ipPanel.state === 'egress'">
                       <span class="result-value-ip">{{ ipPanel.ip }}</span>
-                      <el-tag v-if="passwallRunning && currentNodeTest?.latency" size="small" effect="plain" :style="ipLatencyTagStyle">{{ (parseFloat(currentNodeTest.latency) * 1000).toFixed(0) }} ms</el-tag>
-                      <el-tag v-if="currentNodeTest?.ip_country" size="small" effect="plain" :style="ipCountryTagStyle">{{ currentNodeTest.ip_country }}</el-tag>
-                      <el-tag v-if="currentNodeTest?.ip_type" size="small" effect="plain" :style="ipTypeTagStyle(currentNodeTest.ip_type)">{{ currentNodeTest.ip_type }}</el-tag>
-                      <el-tag v-if="currentNodeTest?.is_isp === 'true'" size="small" effect="plain" :style="ipGreenTagStyle">住宅IP</el-tag>
+                      <el-tag v-if="passwallRunning && currentNodeTest?.latency" size="small" effect="plain" :style="ipLatencyTagStyle" class="ip-latency-tag">{{ (parseFloat(currentNodeTest.latency) * 1000).toFixed(0) }} ms</el-tag>
+                      <span class="url-test-tags-group">
+                        <el-tag v-if="currentNodeTest?.ip_country" size="small" effect="plain" :style="ipCountryTagStyle">{{ currentNodeTest.ip_country }}</el-tag>
+                        <el-tag v-if="currentNodeTest?.ip_type" size="small" effect="plain" :style="ipTypeTagStyle(currentNodeTest.ip_type)">{{ currentNodeTest.ip_type }}</el-tag>
+                        <el-tag v-if="currentNodeTest?.is_isp === 'true'" size="small" effect="plain" :style="ipGreenTagStyle">住宅IP</el-tag>
+                      </span>
                     </template>
                     <span v-else-if="ipPanel.state === 'device'" class="result-value-ip">{{ ipPanel.ip }}</span>
                     <el-button v-else text :loading="true" size="small" />
                   </div>
-                  <div v-if="currentNodeTest && (currentNodeTest.location || currentNodeTest.isp)" class="result-row">
+                  <div v-if="currentNodeTest && currentNodeTest.location" class="result-row">
                     <span class="result-label">{{ $t('clientDetail.passwallURLTestGeo') }}:</span>
-                    <span v-if="currentNodeTest.location" class="result-value-geo">{{ currentNodeTest.location }}</span>
-                    <span v-if="currentNodeTest.isp" class="result-value-isp">{{ currentNodeTest.isp }}</span>
+                    <span class="result-value-geo">{{ currentNodeTest.location }}</span>
+                  </div>
+                  <div v-if="currentNodeTest && currentNodeTest.isp" class="result-row">
+                    <span class="result-label">{{ $t('clientDetail.passwallURLTestISP') }}:</span>
+                    <span class="result-value-isp">{{ currentNodeTest.isp }}</span>
                   </div>
                 </div>
 
@@ -309,7 +314,7 @@
               </div>
 
               <!-- Frp config fields (modify_frp) -->
-              <div v-if="isFrpConfig" class="frp-config-form">
+              <div v-if="isFrpConfig" v-loading="frpLoading" class="frp-config-form">
                 <div class="frp-config-header">
                   <el-icon class="frp-config-header-icon"><EditPen /></el-icon>
                   <div class="frp-config-header-text">
@@ -319,23 +324,13 @@
                 </div>
                 <el-divider class="frp-config-divider" />
                 <div class="frp-config-grid">
-                  <div class="frp-config-field frp-config-field--full">
+                  <div class="frp-config-field">
                     <span class="frp-config-label">
                       <el-icon><Connection /></el-icon>{{ $t('clientDetail.frpServerAddrLabel') }}
                     </span>
                     <el-input
-                      v-model="frpServerAddr"
-                      :placeholder="$t('clientDetail.frpServerAddr')"
-                      clearable
-                    />
-                  </div>
-                  <div class="frp-config-field">
-                    <span class="frp-config-label">
-                      <el-icon><Coordinate /></el-icon>{{ $t('clientDetail.frpServerPortLabel') }}
-                    </span>
-                    <el-input
-                      v-model="frpServerPort"
-                      :placeholder="$t('clientDetail.frpServerPort')"
+                      v-model="frpServerAddrPort"
+                      :placeholder="$t('clientDetail.frpServerAddrPort')"
                       clearable
                     />
                   </div>
@@ -348,6 +343,26 @@
                       :placeholder="$t('clientDetail.frpUser')"
                       clearable
                     />
+                  </div>
+                  <div class="frp-config-field frp-config-field--inline">
+                    <div class="frp-config-inline-item">
+                      <span class="frp-config-label">
+                        <el-icon><Link /></el-icon>{{ $t('clientDetail.frpProtocolLabel') }}
+                      </span>
+                      <el-radio-group v-model="frpProtocol" size="default">
+                        <el-radio-button value="websocket">{{ $t('clientDetail.frpProtocolWebsocket') }}</el-radio-button>
+                        <el-radio-button value="wss">{{ $t('clientDetail.frpProtocolWss') }}</el-radio-button>
+                      </el-radio-group>
+                    </div>
+                    <div v-show="frpProtocol !== 'wss'" class="frp-config-inline-item">
+                      <span class="frp-config-label">
+                        <el-icon><Lock /></el-icon>{{ $t('clientDetail.frpTlsLabel') }}
+                      </span>
+                      <el-radio-group v-model="frpTlsEnable" size="default">
+                        <el-radio-button :value="true">{{ $t('clientDetail.frpTlsOn') }}</el-radio-button>
+                        <el-radio-button :value="false">{{ $t('clientDetail.frpTlsOff') }}</el-radio-button>
+                      </el-radio-group>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -468,13 +483,9 @@
                     </el-button>
                   </div>
                 </div>
-                <el-divider class="frp-config-divider" />
               </div>
             </div>
-            <div v-if="needFirmwareUpdate" class="fw-platform-info">
-              <div class="fw-info-row"><span class="fw-info-label">{{ $t('clientDetail.fwCurrentVersion') }}</span><span>{{ fwCurrentVersion === '' ? '—' : fwCurrentVersion }}</span></div>
-            </div>
-            <div v-if="selectedPreset !== '' && !isPasswall && (!needFirmwareUpdate || fwStep === 0) && !fwUpgrading && !isModifySystem" class="command-actions">
+            <div v-if="selectedPreset !== '' && selectedPreset !== 'update_system' && !isPasswall && (!needFirmwareUpdate || fwStep === 0) && !fwUpgrading && !isModifySystem" class="command-actions">
               <el-button
                 type="primary"
                 :loading="commandSending"
@@ -498,7 +509,29 @@
             </div>
 
             <!-- Firmware Update Wizard -->
-            <div v-if="needFirmwareUpdate" class="firmware-wizard">
+            <div v-if="needFirmwareUpdate" class="firmware-wizard frp-config-form">
+              <div class="frp-config-header">
+                <el-icon class="frp-config-header-icon"><Download /></el-icon>
+                <div class="frp-config-header-text">
+                  <div class="frp-config-title">{{ $t('clientDetail.cmdUpdateSystem') }}</div>
+                  <div class="frp-config-subtitle">{{ $t('clientDetail.systemUpdateHint') }}</div>
+                </div>
+              </div>
+              <el-divider class="frp-config-divider" />
+              <div class="fw-current-version">
+                <span class="fw-info-label">{{ $t('clientDetail.fwCurrentVersion') }}</span>
+                <span>{{ fwCurrentVersion === '' ? '—' : fwCurrentVersion }}</span>
+              </div>
+              <!-- Step 0: Check update button -->
+              <div v-if="fwStep === 0" class="fw-check-update">
+                <el-button
+                  type="primary"
+                  :loading="commandSending"
+                  @click="sendCommand"
+                >
+                  {{ sendBtnText }}
+                </el-button>
+              </div>
               <!-- Step 1: Detecting -->
               <div v-if="fwStep === 1" class="fw-step">
                 <div class="fw-step-loading">
@@ -523,7 +556,7 @@
                 <div v-if="fwError" class="fw-error">{{ fwError }}</div>
                 <div>
                   <el-radio-group v-if="fwBranches.length > 0" v-model="fwSelectedBranch" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onBranchSelect">
-                    <el-radio v-for="(branch, idx) in fwBranches" :key="idx" :label="idx" class="node-radio-item">
+                    <el-radio v-for="(branch, idx) in fwBranches" :key="idx" :value="idx" class="node-radio-item">
                       <span class="node-name">{{ branch.config }} / {{ branch.branch }}</span>
                       <el-tag size="small" type="info">{{ branch.date }}</el-tag>
                       <el-tag size="small" type="warning">{{ branch.assets.length }} {{ $t('clientDetail.fwFiles') }}</el-tag>
@@ -537,7 +570,7 @@
                 <h4 class="fw-step-title">{{ $t('clientDetail.fwSelectFile') }}</h4>
                 <div>
                   <el-radio-group v-model="fwSelectedFile" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onFileSelect">
-                    <el-radio v-for="(file, idx) in selectedBranchFiles" :key="idx" :label="idx" class="node-radio-item">
+                    <el-radio v-for="(file, idx) in selectedBranchFiles" :key="idx" :value="idx" class="node-radio-item">
                       <span class="node-name">{{ file.name }}</span>
                       <el-tag size="small">{{ formatFileSize(file.size) }}</el-tag>
                     </el-radio>
@@ -568,6 +601,7 @@
                   {{ fwDownloadStatus.status === 'cancelled' ? $t('clientDetail.fwCancelled') : fwDownloadStatus.status === 'complete' ? $t('clientDetail.fwDownloadComplete') : fwDownloadStatus.status === 'error' ? $t('clientDetail.fwDownload') : $t('clientDetail.fwDownloading') }}
                 </h4>
                 <el-progress
+                  :show-text="false"
                   :percentage="Math.round(fwDownloadStatus.progress)"
                   :status="fwDownloadStatus.status === 'complete' ? 'success' : fwDownloadStatus.status === 'error' ? 'exception' : fwDownloadStatus.status === 'cancelled' ? 'warning' : undefined"
                 />
@@ -654,7 +688,7 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElPagination, ElTag, ElButton, ElProgress } from 'element-plus'
-import { ArrowLeft, Loading, Search, EditPen, Connection, Coordinate, User, Setting, Iphone } from '@element-plus/icons-vue'
+import { ArrowLeft, Loading, Search, EditPen, Connection, User, Setting, Iphone, Link, Lock, Download } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
@@ -766,6 +800,24 @@ const ipPanel = computed<{ state: 'egress' | 'device' | 'loading'; ip: string }>
   return { state: 'loading', ip: '' }
 })
 
+// 判断一个 IP 是否为公网 IP（排除内网/环回/链路本地/保留段）。
+// 用于决定 deviceIp 用 connIP 还是 clientIP：同一局域网部署时 connIP 是
+// 192.168.x.x，不应采用；跨公网时 connIP 即公网 IP，优先采用。
+const isPublicIP = (ip: string): boolean => {
+  if (!ip) return false
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip.trim())
+  if (!match) return false
+  const [a, b] = [Number(match[1]), Number(match[2])]
+  // 10.x / 192.168.x / 172.16-31.x 内网；127 环回；169.254 链路本地；0.x/255 保留
+  if (a === 10) return false
+  if (a === 192 && b === 168) return false
+  if (a === 172 && b >= 16 && b <= 31) return false
+  if (a === 127) return false
+  if (a === 169 && b === 254) return false
+  if (a === 0 || a === 255) return false
+  return true
+}
+
 // IP 标签统一配色：原生IP/住宅IP 绿(#48c78e)，广播IP/机房IP 红，ip_country 蓝灰区分，未知灰。
 // 全部用 effect="plain" + 内联样式，确保大小、字重一致，不会出现某个 tag 偏大。
 const IP_GREEN = '#48c78e'
@@ -776,7 +828,7 @@ const ipGreenTagStyle = { color: '#ffffff', borderColor: IP_GREEN, backgroundCol
 const ipRedTagStyle = { color: '#ffffff', borderColor: IP_RED, backgroundColor: IP_RED }
 const ipCountryTagStyle = { color: '#ffffff', borderColor: IP_COUNTRY, backgroundColor: IP_COUNTRY }
 const ipNeutralTagStyle = { color: '#ffffff', borderColor: '#909399', backgroundColor: '#909399' }
-const ipLatencyTagStyle = { color: '#ffffff', borderColor: '#6b7280', backgroundColor: '#6b7280' }
+const ipLatencyTagStyle = { color: IP_GREEN, border: 'none' }
 const ipTypeTagStyle = (t?: string): Record<string, string> => {
   if (!t) return ipNeutralTagStyle
   if (t.includes('原生')) return ipGreenTagStyle
@@ -788,9 +840,19 @@ const needFirmwareUpdate = computed(() => currentCmdConfig.value?.needFirmwareUp
 
 // Frp config fields (for modify_frp command)
 const isFrpConfig = computed(() => selectedPreset.value === 'modify_frp')
-const frpServerAddr = ref('')
-const frpServerPort = ref('')
+const frpServerAddrPort = ref('')
 const frpUser = ref('')
+const frpProtocol = ref<'websocket' | 'wss'>('websocket')
+const frpTlsEnable = ref<boolean | null>(null)
+const frpLoading = ref(false)
+// Snapshot of the client's current frp config, used to detect real changes.
+// tlsEnable is null when the client has no tls_enable configured (no selection).
+const frpInitial = ref<{ addrPort: string; user: string; protocol: string; tlsEnable: boolean | null }>({
+  addrPort: '',
+  user: '',
+  protocol: 'websocket',
+  tlsEnable: null,
+})
 
 // System settings fields (for modify_system command)
 const isModifySystem = computed(() => selectedPreset.value === 'modify_system')
@@ -837,7 +899,15 @@ const startDefaultPasswordCountdown = () => {
 const hasCommandInput = computed(() => {
   if (needFirmwareUpdate.value) return true
   if (isFrpConfig.value) {
-    return frpServerAddr.value.trim() !== '' || frpServerPort.value.trim() !== '' || frpUser.value.trim() !== ''
+    // Only enable send when the form differs from the client's current config.
+    if (frpLoading.value) return false
+    const init = frpInitial.value
+    return (
+      frpServerAddrPort.value.trim() !== init.addrPort.trim() ||
+      frpUser.value.trim() !== init.user.trim() ||
+      frpProtocol.value !== init.protocol ||
+      frpTlsEnable.value !== init.tlsEnable
+    )
   }
   if (isModifySystem.value) {
     // Any change (toggle or SSID edit) counts as a valid command input.
@@ -857,9 +927,10 @@ const onPresetChange = (value: string) => {
   payloadInput.value = ''
   passwallAddLink.value = ''
   passwallNodeTestState.value = {}
-  frpServerAddr.value = ''
-  frpServerPort.value = ''
+  frpServerAddrPort.value = ''
   frpUser.value = ''
+  frpProtocol.value = 'websocket'
+  frpTlsEnable.value = null
   systemWan6.value = true
   systemBands.value = []
   systemSsid.value = ''
@@ -875,6 +946,10 @@ const onPresetChange = (value: string) => {
   // Auto-fetch node list for passwall
   if (value === 'passwall') {
     fetchNodeList()
+  }
+  // Auto-fetch current frp config when entering the frp config panel
+  if (value === 'modify_frp' && client.value) {
+    fetchFrpConfig()
   }
   // Auto-fetch current system settings when entering system settings panel
   if (value === 'modify_system' && client.value) {
@@ -911,8 +986,16 @@ const fetchNodeList = async () => {
       passwallEnabled.value = data.enabled === true
       passwallRunning.value = data.running === true
       passwallActiveNode.value = data.activeNode || ''
-      // 设备公网 IP 由服务端直接提供（frpc→frps 连接源地址），无需客户端额外查询。
-      deviceIp.value = client.value?.ip || ''
+      // IP 优先级：
+      // 1) connIP（frps 观察到的真实 TCP 源 IP）——跨公网部署时即公网 IP；
+      //    但当 frps 与 frpc 在同一局域网（如本地开发）时它是 192.168.x.x，
+      //    此时不采用。
+      // 2) clientIP（frpc 登录时 publicIP() 上报的公网 IP）——局域网开发时
+      //    用它显示设备的真实公网出口 IP。
+      // 3) 兜底 connIP，至少展示真实连接源。
+      const connIp = client.value?.connIP || ''
+      const clientIp = client.value?.ip || ''
+      deviceIp.value = isPublicIP(connIp) ? connIp : (clientIp || connIp)
       // 立即显示节点列表，不再等 url_test_device（IP 分类较慢）结束。
       nodeListLoading.value = false
       // 顶部“当前节点信息”面板在后台异步刷新，不阻塞列表渲染。
@@ -1600,6 +1683,42 @@ const fetchSystemSettings = async () => {
   }
 }
 
+// Fetch the client's current frp config (server addr:port, user, protocol,
+// tls_enable) when entering the frp config panel, and prefill the form with it.
+const fetchFrpConfig = async () => {
+  if (!client.value) return
+  frpLoading.value = true
+  // Reset to defaults while loading to avoid showing stale values.
+  frpServerAddrPort.value = ''
+  frpUser.value = ''
+  frpProtocol.value = 'websocket'
+  frpTlsEnable.value = null
+  try {
+    const resp = await sendClientCommand(client.value.key, { command: 'get_frp', payload: '' })
+    if (resp.result === 'ok') {
+      const data = JSON.parse(resp.output)
+      const addr = typeof data.serverAddr === 'string' ? data.serverAddr : ''
+      const port = typeof data.serverPort === 'number' ? String(data.serverPort) : ''
+      const addrPort = [addr, port].filter(Boolean).join(':')
+      const protocol = data.protocol === 'wss' ? 'wss' : 'websocket'
+      // tlsEnable is null when the client has no tls_enable configured.
+      const tlsEnable = typeof data.tlsEnable === 'boolean' ? data.tlsEnable : null
+      frpServerAddrPort.value = addrPort
+      frpUser.value = typeof data.user === 'string' ? data.user : ''
+      frpProtocol.value = protocol
+      frpTlsEnable.value = tlsEnable
+      // Snapshot the loaded values so we can detect real changes.
+      frpInitial.value = { addrPort, user: frpUser.value, protocol, tlsEnable }
+    } else {
+      ElMessage.warning(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
+    }
+  } catch (error: any) {
+    ElMessage.warning(t('clientDetail.commandFailed', { msg: error.message }))
+  } finally {
+    frpLoading.value = false
+  }
+}
+
 // Query whether the device still uses the factory default root password.
 const fetchDefaultPassword = async () => {
   if (!client.value) return
@@ -1657,8 +1776,11 @@ const sendCommand = async () => {
   let payload = payloadInput.value
   if (isFrpConfig.value) {
     const frpCfg: Record<string, unknown> = {}
-    if (frpServerAddr.value.trim()) frpCfg.serverAddr = frpServerAddr.value.trim()
-    if (frpServerPort.value.trim()) frpCfg.serverPort = parseInt(frpServerPort.value.trim(), 10)
+    if (frpServerAddrPort.value.trim()) {
+      const [host, port] = frpServerAddrPort.value.trim().split(':')
+      if (host) frpCfg.serverAddr = host
+      if (port) frpCfg.serverPort = parseInt(port, 10)
+    }
     if (frpUser.value.trim()) {
       if (/^\d+$/.test(frpUser.value.trim())) {
         ElMessage.error(t('clientDetail.frpUserNotNumeric'))
@@ -1667,6 +1789,10 @@ const sendCommand = async () => {
       }
       frpCfg.user = frpUser.value.trim()
     }
+    if (frpProtocol.value) frpCfg.protocol = frpProtocol.value
+    // 仅当协议非 wss 且用户已选择 tls 状态时输出 tls_enable（wss 已隐含 TLS；
+    // null 表示客户端原本未配置，保持不发送，避免误写成 true/false）
+    if (frpProtocol.value !== 'wss' && frpTlsEnable.value !== null) frpCfg.tls_enable = frpTlsEnable.value
     payload = JSON.stringify(frpCfg)
   }
   try {
@@ -1938,7 +2064,7 @@ html.dark .status-badge.online {
 }
 
 .passwall-current-panel .result-label {
-  width: 76px;
+  width: 60px;
   flex-shrink: 0;
   text-align: right;
 }
@@ -1947,12 +2073,18 @@ html.dark .status-badge.online {
 .passwall-current-panel .el-tag {
   height: 22px;
   line-height: 20px;
-  padding: 0 8px;
+  padding: 0 6px;
 }
 
 .url-test-tags {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.url-test-tags-group {
+  display: inline-flex;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -2034,14 +2166,8 @@ html.dark .status-badge.online {
 }
 
 .result-value-isp {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  margin-left: 6px;
-  opacity: 0.8;
-}
-
-.result-value-isp::before {
-  content: '· ';
 }
 
 .site-tag {
@@ -2136,8 +2262,8 @@ html.dark .url-test-fail {
 
 .frp-config-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 18px;
+  grid-template-columns: repeat(auto-fill,minmax(268px,1fr));
+  gap: 16px 12px;
 }
 
 .frp-config-field {
@@ -2149,6 +2275,22 @@ html.dark .url-test-fail {
 
 .frp-config-field--full {
   grid-column: 1 / -1;
+}
+
+.frp-config-field--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.frp-config-inline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  :deep(.el-radio-button__inner){
+    padding: 8px 12px;
+  }
 }
 
 .frp-config-label {
@@ -2409,6 +2551,23 @@ html.dark .system-toggle-item:hover {
   border-radius: 8px;
 }
 
+/* Current version row inside the firmware update card */
+.fw-current-version {
+  display: flex;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 6px 0 12px;
+  color: var(--el-text-color-regular, #606266);
+}
+
+.fw-current-version .fw-info-label {
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.fw-check-update {
+  padding-bottom: 4px;
+}
+
 .fw-info-row {
   display: flex;
   gap: 8px;
@@ -2418,7 +2577,7 @@ html.dark .system-toggle-item:hover {
 
 .fw-info-label {
   color: var(--text-secondary);
-  min-width: 80px;
+  min-width: 68px;
 }
 
 .fw-error {
@@ -2448,7 +2607,7 @@ html.dark .system-toggle-item:hover {
 
 .result-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -2759,6 +2918,61 @@ html.dark .m-orb-2 {
     font-size: 12px;
   }
 
+  /* Remote command menu: fit all four buttons on one line on narrow screens */
+  .command-radio-group {
+    display: flex;
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .command-radio-group :deep(.el-radio-button) {
+    flex: 1 1 0;
+  }
+
+  .command-radio-group :deep(.el-radio-button__inner) {
+    width: 100%;
+    padding: 8px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Node list: info on first line, buttons on second line aligned right */
+  .passwall-node-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .passwall-node-info {
+    width: 100%;
+    flex: none;
+  }
+
+  .passwall-node-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  /* 第一行：IP: + IP 值 + 延迟 tag；第二行：其余 tags 缩进对齐 IP 值 */
+  .url-test-tags {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .url-test-tags .result-label {
+    flex: 0 0 auto;
+  }
+  .url-test-tags .result-value-ip {
+    flex: 0 1 auto;
+  }
+  .url-test-tags-group {
+    flex: 1 1 100%;
+    margin-left: 68px;
+  }
+
   .proxies-header {
     flex-direction: row;
     align-items: center;
@@ -2777,6 +2991,68 @@ html.dark .m-orb-2 {
 
   .proxies-list {
     gap: 8px;
+  }
+
+  /* System WIFI settings: stack the select/inputs/button vertically on narrow screens
+     so the SSID and password fields are not squeezed out of the viewport */
+  .system-ssid-field {
+    gap: 10px;
+  }
+
+  .ssid-input-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .ssid-target-select,
+  .ssid-input,
+  .ssid-send-btn {
+    width: 100%;
+    flex: none;
+  }
+
+  /* Firmware update: stack branch/file options vertically on narrow screens
+     so the long config/branch text and firmware filenames do not overflow */
+  .firmware-wizard .node-radio-group {
+    padding-left: 0;
+  }
+
+  .firmware-wizard .node-radio-item {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .firmware-wizard :deep(.el-radio__label) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    gap: 6px;
+  }
+
+  .firmware-wizard .node-name {
+    display: block;
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* Keep the meta tags on their own wrapped row under the name */
+  .firmware-wizard .node-radio-item :deep(.el-tag) {
+    margin: 0 6px 0 0;
   }
 
   .pagination-section {

@@ -48,12 +48,11 @@ const router = createRouter({
 
 // Route guard: public routes pass through, protected routes rely on
 // API 401 responses handled by the global fetch interceptor.
-router.beforeEach((to: any, _: any, next: any) => {
+router.beforeEach((to: any) => {
   if (to.meta.public) {
-    next()
-    return
+    return true
   }
-  next()
+  return true
 })
 
 export default router

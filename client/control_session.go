@@ -139,9 +139,25 @@ func (d *controlSessionDialer) buildLoginMsg(previousRunID string) (*msg.Login, 
 // publicIP returns the client's public IP address (the IP assigned by the ISP)
 // by querying external services. This is useful when frps is behind a reverse
 // proxy and cannot see the client's real public IP.
+//
+// To avoid passwall / transparent proxy hijacking, bypass-friendly HTTP services
+// are tried first. These domains are typically configured as direct-routed in
+// passwall's default bypass list, so the query goes out through the real ISP
+// interface even when the proxy is on. If none respond (e.g. different bypass
+// list config), it falls back to standard HTTPS services which may return the
+// proxy egress IP when iptables redirection is active.
 func publicIP() string {
-	// Try multiple services for reliability
-	services := []string{
+	// Bypass-friendly HTTP services (plain-text, typically in passwall direct
+	// bypass, fast). Each parser extracts the first IPv4 found in the body.
+	type ipService struct {
+		url    string
+		parser func(string) string // nil → use whole body after trimming
+	}
+	bypassServices := []ipService{
+		{"http://myip.ipip.net", extractFirstIP},
+		{"http://cip.cc", extractCipCCIP},
+	}
+	fallbackServices := []string{
 		"https://api.ipify.org",
 		"https://ifconfig.me",
 		"https://ipinfo.io/ip",
@@ -154,21 +170,74 @@ func publicIP() string {
 			Proxy: nil,
 		},
 	}
-	for _, url := range services {
-		resp, err := client.Get(url)
-		if err != nil {
+	for _, svc := range bypassServices {
+		ip := tryGetIP(client, svc.url, svc.parser)
+		if ip != "" {
+			return ip
+		}
+	}
+	for _, url := range fallbackServices {
+		ip := tryGetIP(client, url, nil)
+		if ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
+// tryGetIP fetches url with client, applies parse to the response body
+// (or trims the body directly when parse is nil), and returns a valid IP string
+// or empty.
+func tryGetIP(client *http.Client, url string, parse func(string) string) string {
+	resp, err := client.Get(url)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	text := strings.TrimSpace(string(body))
+	if parse != nil {
+		text = parse(text)
+	}
+	if text != "" && net.ParseIP(text) != nil {
+		return text
+	}
+	return ""
+}
+
+// extractFirstIP returns the first valid IPv4 found in a mixed-content response
+// like "当前 IP：1.2.3.4  来自于：...". If no IP is found returns "".
+func extractFirstIP(text string) string {
+	for _, field := range strings.Fields(strings.NewReplacer("：", ": ", "：", ": ").Replace(text)) {
+		field = strings.TrimRight(field, ",，;:：")
+		if ip := strings.TrimSpace(field); net.ParseIP(ip) != nil {
+			return ip
+		}
+	}
+	return ""
+}
+
+// extractCipCCIP extracts the IP from cip.cc responses like:
+//
+//	IP      : 1.2.3.4
+//	...
+func extractCipCCIP(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "IP") {
 			continue
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				continue
-			}
-			ip := strings.TrimSpace(string(body))
-			if net.ParseIP(ip) != nil {
-				return ip
-			}
+		line = strings.TrimPrefix(line, "IP")
+		line = strings.TrimLeft(line, " \t:：*")
+		line = strings.TrimSpace(line)
+		if ip, _, _ := strings.Cut(line, " "); net.ParseIP(ip) != nil {
+			return ip
 		}
 	}
 	return ""

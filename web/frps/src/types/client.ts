@@ -7,6 +7,7 @@ export interface ClientInfoData {
   wireProtocol?: string
   hostname: string
   clientIP?: string
+  connIP?: string
   ipLocation?: string
   ipIsp?: string
   firstConnectedAt: number

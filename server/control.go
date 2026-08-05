@@ -201,17 +201,24 @@ func (cm *ControlManager) Activate(ctl *Control) (bool, error) {
 	}
 
 	loginMsg := ctl.sessionCtx.LoginMsg
-	remoteAddr := ctl.sessionCtx.Conn.RemoteAddr().String()
-	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
-		remoteAddr = host
+
+	// Always capture the real TCP connection source IP BEFORE the ClientAddr
+	// override. This stays accurate even when the frpc device is behind a
+	// transparent proxy like passwall (iptables hijacks outbound HTTP but
+	// cannot alter the TCP connection's real source address).
+	connIP := ctl.sessionCtx.Conn.RemoteAddr().String()
+	if host, _, err := net.SplitHostPort(connIP); err == nil {
+		connIP = host
 	}
-	// Prefer the client's self-reported outbound address when it disagrees with
-	// the server-observed RemoteAddr. This matters when frps is behind a reverse
-	// proxy (e.g. nginx) and only sees the proxy address (e.g. 127.0.0.1).
+
+	remoteAddr := connIP
+	// When frps is behind a reverse proxy the server-observed RemoteAddr may
+	// be the proxy address (e.g. 127.0.0.1), so prefer the client's self-
+	// reported ClientAddr when they disagree.
 	if loginMsg.ClientAddr != "" && loginMsg.ClientAddr != remoteAddr {
 		remoteAddr = loginMsg.ClientAddr
 	}
-	_, conflict := cm.registry.RegisterWithControlID(
+	key, conflict := cm.registry.RegisterWithControlID(
 		loginMsg.User,
 		loginMsg.ClientID,
 		ctl.runID,
@@ -224,6 +231,10 @@ func (cm *ControlManager) Activate(ctl *Control) (bool, error) {
 	if conflict {
 		return true, fmt.Errorf("client_id [%s] for user [%s] is already online", loginMsg.ClientID, loginMsg.User)
 	}
+	// Persist the unmodified TCP source IP separately so the frontend can
+	// always show the device's real IP (not the possibly proxy-contaminated
+	// ClientAddr).
+	cm.registry.SetConnIP(key, connIP)
 
 	entry.registryOnline = true
 	entry.registryControlID = entry.id

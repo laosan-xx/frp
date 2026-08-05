@@ -31,6 +31,7 @@ type ClientInfo struct {
 	ControlID        uint64
 	Hostname         string
 	IP               string
+	ConnIP           string // Real TCP connection source IP (never overridden by ClientAddr)
 	IPLocation       string
 	IPIsp            string
 	Version          string
@@ -268,5 +269,17 @@ func (cr *ClientRegistry) UpdateIPLocation(key, location, isp string) {
 	if info, ok := cr.clients[key]; ok {
 		info.IPLocation = location
 		info.IPIsp = isp
+	}
+}
+
+// SetConnIP stores the unmodified TCP connection source IP for a client. This
+// is the real origin address observed by frps and is NOT overridden by the
+// client's self-reported ClientAddr, so it stays correct even when the frpc
+// device is behind a transparent proxy like passwall.
+func (cr *ClientRegistry) SetConnIP(key, connIP string) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	if info, ok := cr.clients[key]; ok {
+		info.ConnIP = connIP
 	}
 }

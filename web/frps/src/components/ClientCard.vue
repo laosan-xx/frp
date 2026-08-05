@@ -404,15 +404,11 @@ html.dark .client-card:hover {
   }
 
   .hostname-badge {
-    flex-shrink: 0;
+    display: none;
   }
 
   .card-header .el-tag {
     display: inline-flex;
-  }
-
-  .meta-item.meta-ip {
-    display: none;
   }
 
   .meta-region .meta-label {

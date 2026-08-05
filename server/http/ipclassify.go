@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -36,20 +37,20 @@ import (
 // which keeps the rate-limited ip-api endpoint (45 req/min per source IP)
 // from being exhausted by many routers testing many nodes.
 type ipClassInfo struct {
-	Country           string
-	RegisteredCountry string
-	ASN               string
-	Org               string
-	City              string
-	Region            string
-	UsageType         string
-	CompanyType       string
-	IPType            string
-	IsNative          bool
-	IsBroadcast       bool
-	IsHosting         bool
-	IsISP             bool
-	Privacy           string
+	Country           string `json:"country"`
+	RegisteredCountry string `json:"registered_country"`
+	ASN               string `json:"asn"`
+	Org               string `json:"org"`
+	City              string `json:"city"`
+	Region            string `json:"region"`
+	UsageType         string `json:"usage_type"`
+	CompanyType       string `json:"company_type"`
+	IPType            string `json:"ip_type"`
+	IsNative          bool   `json:"is_native"`
+	IsBroadcast       bool   `json:"is_broadcast"`
+	IsHosting         bool   `json:"is_hosting"`
+	IsISP             bool   `json:"is_isp"`
+	Privacy           string `json:"privacy"`
 }
 
 // ipinfoWidget is the subset of ipinfo.io/widget/demo/<IP> we consume.
@@ -94,16 +95,34 @@ const (
 )
 
 // ipClassCacheEntry caches a classification result. IP geolocation rarely
-// changes, so a 24h TTL collapses repeat node tests of the same IP into a
-// single external query. Failed lookups are cached briefly (5 min) to avoid
-// hammering the rate-limited endpoint.
+// changes, so a 3-day TTL collapses repeat node tests of the same IP into a
+// single external query even across frps restarts (the cache is persisted to
+// disk). Failed lookups are cached briefly (5 min) to avoid hammering the
+// rate-limited endpoint.
 type ipClassCacheEntry struct {
 	c      ipClassInfo
 	ok     bool
 	expire time.Time
 }
 
+// ipClassTTL is how long a successful classification stays valid. IP geolocation
+// and usage type almost never change, so 3 days is safe and keeps the
+// rate-limited ipinfo/ip-api endpoints quiet.
+const ipClassTTL = 72 * time.Hour
+
+// ipClassCacheFile is the on-disk database (JSON) that mirrors ipClassCache so
+// results survive frps restarts. It is written next to the frps working dir.
+const ipClassCacheFile = "ip_class_cache.json"
+
 var ipClassCache sync.Map
+
+// ipClassPersistence guards the (debounced) background save of ipClassCache to
+// disk.
+var (
+	ipClassSaveMu    sync.Mutex
+	ipClassSaveTimer *time.Timer
+	ipClassLoadOnce  sync.Once
+)
 
 // ipClassPromise represents an in-flight classification so that concurrent
 // requests for the same IP wait for one query instead of each firing their own
@@ -117,11 +136,87 @@ type ipClassPromise struct {
 // ipClassInFlight tracks classifications currently being computed, keyed by IP.
 var ipClassInFlight sync.Map
 
+// ipClassCacheOnDisk mirrors ipClassCacheEntry for JSON serialization.
+type ipClassCacheOnDisk struct {
+	Entries map[string]struct {
+		C      ipClassInfo `json:"c"`
+		Ok     bool        `json:"ok"`
+		Expire int64       `json:"expire"`
+	} `json:"entries"`
+}
+
+// loadIPClassCache reads the on-disk database into ipClassCache at first use.
+// Expired entries are silently skipped. Safe to call multiple times; the actual
+// load happens only once.
+func loadIPClassCache() {
+	ipClassLoadOnce.Do(func() {
+		data, err := os.ReadFile(ipClassCacheFile)
+		if err != nil {
+			// No cache file yet (first run or it was deleted) — start empty.
+			return
+		}
+		var disk ipClassCacheOnDisk
+		if err := json.Unmarshal(data, &disk); err != nil {
+			return
+		}
+		now := time.Now()
+		for ip, e := range disk.Entries {
+			if now.Before(time.Unix(e.Expire, 0)) {
+				ipClassCache.Store(ip, ipClassCacheEntry{c: e.C, ok: e.Ok, expire: time.Unix(e.Expire, 0)})
+			}
+		}
+	})
+}
+
+// scheduleIPClassSave persists ipClassCache to disk on a debounce, so a burst of
+// new classifications coalesces into a single write.
+func scheduleIPClassSave() {
+	ipClassSaveMu.Lock()
+	defer ipClassSaveMu.Unlock()
+	if ipClassSaveTimer != nil {
+		ipClassSaveTimer.Stop()
+	}
+	ipClassSaveTimer = time.AfterFunc(2*time.Second, saveIPClassCache)
+}
+
+// saveIPClassCache snapshots ipClassCache to the on-disk JSON database.
+func saveIPClassCache() {
+	ipClassSaveMu.Lock()
+	defer ipClassSaveMu.Unlock()
+	disk := ipClassCacheOnDisk{Entries: make(map[string]struct {
+		C      ipClassInfo `json:"c"`
+		Ok     bool        `json:"ok"`
+		Expire int64       `json:"expire"`
+	})}
+	ipClassCache.Range(func(k, v any) bool {
+		e := v.(ipClassCacheEntry)
+		disk.Entries[k.(string)] = struct {
+			C      ipClassInfo `json:"c"`
+			Ok     bool        `json:"ok"`
+			Expire int64       `json:"expire"`
+		}{C: e.c, Ok: e.ok, Expire: e.expire.Unix()}
+		return true
+	})
+	data, err := json.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return
+	}
+	// Write to a temp file then rename, so a crash mid-write does not corrupt
+	// the active database.
+	tmp := ipClassCacheFile + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return
+	}
+	_ = os.Rename(tmp, ipClassCacheFile)
+}
+
 // classifyIP returns the classification for ip, using a process-wide cache so
 // that repeated node tests (which share the same egress IPs) hit ipinfo/ip-api
-// at most once per IP per 24h. Concurrent misses for the same IP are collapsed
-// into a single query via ipClassInFlight.
+// at most once per IP per 3 days. Concurrent misses for the same IP are collapsed
+// into a single query via ipClassInFlight, and the result is persisted to disk
+// so it survives frps restarts.
 func classifyIP(ip string) (ipClassInfo, bool) {
+	loadIPClassCache()
 	if cached, ok := ipClassCache.Load(ip); ok {
 		e := cached.(ipClassCacheEntry)
 		if time.Now().Before(e.expire) {
@@ -152,11 +247,12 @@ func classifyIP(ip string) (ipClassInfo, bool) {
 		}()
 		c, _ = doClassifyIP(ip)
 		ok = c.Country != "" || c.ASN != "" || c.IPType != ""
-		ttl := 24 * time.Hour
+		ttl := ipClassTTL
 		if !ok {
 			ttl = 5 * time.Minute
 		}
 		ipClassCache.Store(ip, ipClassCacheEntry{c: c, ok: ok, expire: time.Now().Add(ttl)})
+		scheduleIPClassSave()
 		promise.c = c
 		promise.ok = ok
 	}()

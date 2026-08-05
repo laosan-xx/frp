@@ -310,14 +310,12 @@ func (c *Controller) APIV2ClientCommand(ctx *httppkg.Context) (any, error) {
 		return nil, httppkg.NewError(http.StatusInternalServerError, err.Error())
 	}
 
-	// Wait for response with timeout. Node/device latency tests are bounded to
-	// 10s (the frpc side starts a temp proxy + probes the egress IP, which is
-	// expected to finish within a few seconds); other remote commands keep the
-	// longer 30s budget.
+	// Wait for response with timeout. Node/device latency tests (url_test_node,
+	// url_test_device) start a temp proxy AND probe the egress IP on the frpc
+	// side; the proxy cold-start alone can take up to ~10s, so these must keep
+	// the full 30s budget to avoid false 504s on slow devices. All remote
+	// commands use the same 30s budget.
 	cmdTimeout := 30 * time.Second
-	if req.Command == "url_test_node" || req.Command == "url_test_device" {
-		cmdTimeout = 10 * time.Second
-	}
 	timer := time.NewTimer(cmdTimeout)
 	defer timer.Stop()
 	select {
