@@ -3,10 +3,9 @@ package e2e
 import (
 	"fmt"
 
-	"github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var _ = ginkgo.Describe("[Feature: Example]", func() {

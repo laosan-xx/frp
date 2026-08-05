@@ -23,13 +23,12 @@ import (
 	"sync"
 
 	"github.com/fatedier/golib/pool"
-	"github.com/songgao/water/waterutil"
-	"golang.org/x/net/ipv4"
-	"golang.org/x/net/ipv6"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"github.com/songgao/water/waterutil"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 const (

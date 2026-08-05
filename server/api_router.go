@@ -23,13 +23,12 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/util"
 	adminapi "github.com/laosan-xx/frp/server/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // captchaStore stores captcha codes temporarily.

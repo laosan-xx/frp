@@ -25,15 +25,14 @@ import (
 
 	libnet "github.com/fatedier/golib/net"
 	fmux "github.com/hashicorp/yamux"
-	quic "github.com/quic-go/quic-go"
-	"github.com/samber/lo"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/proto/wire"
 	"github.com/laosan-xx/frp/pkg/transport"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
+	quic "github.com/quic-go/quic-go"
+	"github.com/samber/lo"
 )
 
 // Connector is an interface for establishing connections to the server.

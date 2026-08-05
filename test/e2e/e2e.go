@@ -3,11 +3,10 @@ package e2e
 import (
 	"testing"
 
-	"github.com/onsi/ginkgo/v2"
-	"github.com/onsi/gomega"
-
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/test/e2e/framework"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 )
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {

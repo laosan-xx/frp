@@ -15,9 +15,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUDPPacketBinaryRoundTrip(t *testing.T) {

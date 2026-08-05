@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )

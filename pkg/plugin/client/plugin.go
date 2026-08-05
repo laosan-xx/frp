@@ -22,10 +22,9 @@ import (
 	"sync"
 
 	"github.com/fatedier/golib/errors"
-	pp "github.com/pires/go-proxyproto"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/vnet"
+	pp "github.com/pires/go-proxyproto"
 )
 
 type PluginContext struct {

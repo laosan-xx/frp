@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/laosan-xx/frp/pkg/config/types"
 	"github.com/stretchr/testify/require"
 	clocktesting "k8s.io/utils/clock/testing"
-
-	"github.com/laosan-xx/frp/pkg/config/types"
 )
 
 func TestManagerUsesClockForPortTimestamps(t *testing.T) {

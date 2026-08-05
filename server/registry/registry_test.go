@@ -18,9 +18,8 @@ import (
 	"testing"
 	"time"
 
-	clocktesting "k8s.io/utils/clock/testing"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
+	clocktesting "k8s.io/utils/clock/testing"
 )
 
 func TestClientRegistryRegisterStoresWireProtocol(t *testing.T) {

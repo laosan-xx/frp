@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
@@ -33,6 +31,7 @@ import (
 	"github.com/laosan-xx/frp/server/controller"
 	"github.com/laosan-xx/frp/server/proxy"
 	"github.com/laosan-xx/frp/server/registry"
+	"github.com/stretchr/testify/require"
 )
 
 func TestControlPendingReplacementFinishesWithoutStarting(t *testing.T) {

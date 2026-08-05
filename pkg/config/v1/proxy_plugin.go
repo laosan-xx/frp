@@ -17,10 +17,9 @@ package v1
 import (
 	"reflect"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/util/jsonx"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/samber/lo"
 )
 
 const (

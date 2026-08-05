@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onsi/ginkgo/v2"
-
 	plugin "github.com/laosan-xx/frp/pkg/plugin/server"
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
 	pluginpkg "github.com/laosan-xx/frp/test/e2e/pkg/plugin"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var _ = ginkgo.Describe("[Feature: Server-Plugins]", func() {

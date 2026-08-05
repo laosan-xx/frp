@@ -7,9 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/utils/clock"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
+	"k8s.io/utils/clock"
 )
 
 const (

@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
@@ -16,6 +14,7 @@ import (
 	"github.com/laosan-xx/frp/test/e2e/mock/server/streamserver"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
 	"github.com/laosan-xx/frp/test/e2e/pkg/ssh"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var _ = ginkgo.Describe("[Feature: SSH Tunnel]", func() {

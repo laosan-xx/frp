@@ -19,10 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/stretchr/testify/require"
 )
 
 func TestManagerNewConnCarriesWireProtocolAndUDPPacketCodec(t *testing.T) {

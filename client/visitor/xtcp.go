@@ -26,9 +26,6 @@ import (
 
 	libio "github.com/fatedier/golib/io"
 	fmux "github.com/hashicorp/yamux"
-	quic "github.com/quic-go/quic-go"
-	"golang.org/x/time/rate"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/naming"
@@ -37,6 +34,8 @@ import (
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/util"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
+	quic "github.com/quic-go/quic-go"
+	"golang.org/x/time/rate"
 )
 
 var ErrNoTunnelSession = errors.New("no tunnel session")

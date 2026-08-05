@@ -151,11 +151,11 @@
                     <span v-else-if="ipPanel.state === 'device'" class="result-value-ip">{{ ipPanel.ip }}</span>
                     <el-button v-else text :loading="true" size="small" />
                   </div>
-                  <div v-if="currentNodeTest && currentNodeTest.location" class="result-row">
+                  <div v-if="currentNodeTest && currentNodeTest.location" class="result-row geo-isp-info">
                     <span class="result-label">{{ $t('clientDetail.passwallURLTestGeo') }}:</span>
                     <span class="result-value-geo">{{ currentNodeTest.location }}</span>
                   </div>
-                  <div v-if="currentNodeTest && currentNodeTest.isp" class="result-row">
+                  <div v-if="currentNodeTest && currentNodeTest.isp" class="result-row geo-isp-info">
                     <span class="result-label">{{ $t('clientDetail.passwallURLTestISP') }}:</span>
                     <span class="result-value-isp">{{ currentNodeTest.isp }}</span>
                   </div>
@@ -1428,7 +1428,7 @@ const startFirmwareWizard = async () => {
       } else {
         fwCurrentVersion.value = ''
       }
-    } catch (e: any) {
+    } catch {
       fwCurrentVersion.value = ''
     }
     const resp = await sendClientCommand(client.value.key, { command: 'detect_platform', payload: '' })
@@ -2607,7 +2607,7 @@ html.dark .system-toggle-item:hover {
 
 .result-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -2971,6 +2971,10 @@ html.dark .m-orb-2 {
   .url-test-tags-group {
     flex: 1 1 100%;
     margin-left: 68px;
+  }
+
+  .geo-isp-info{
+    align-items: flex-start;
   }
 
   .proxies-header {

@@ -18,11 +18,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/pkg/config"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/nathole"
+	"github.com/spf13/cobra"
 )
 
 var (

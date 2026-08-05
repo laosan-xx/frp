@@ -18,11 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/utils/clock"
-
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/metric"
 	server "github.com/laosan-xx/frp/server/metrics"
+	"k8s.io/utils/clock"
 )
 
 var (

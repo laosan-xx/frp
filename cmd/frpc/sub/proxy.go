@@ -19,13 +19,12 @@ import (
 	"os"
 	"slices"
 
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/pkg/config"
 	"github.com/laosan-xx/frp/pkg/config/source"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/config/v1/validation"
 	"github.com/laosan-xx/frp/pkg/policy/security"
+	"github.com/spf13/cobra"
 )
 
 var proxyTypes = []v1.ProxyType{

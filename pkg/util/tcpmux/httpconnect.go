@@ -23,7 +23,6 @@ import (
 	"time"
 
 	libnet "github.com/fatedier/golib/net"
-
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 	"github.com/laosan-xx/frp/pkg/util/vhost"
 )

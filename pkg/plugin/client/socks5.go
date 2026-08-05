@@ -22,7 +22,6 @@ import (
 	"log"
 
 	gosocks5 "github.com/armon/go-socks5"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )

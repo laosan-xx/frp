@@ -17,10 +17,9 @@ package validation
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/policy/security"
+	"github.com/stretchr/testify/require"
 )
 
 const (

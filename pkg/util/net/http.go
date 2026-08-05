@@ -185,7 +185,7 @@ func (sm *SessionManager) Issue(w http.ResponseWriter, username string) error {
 	if err != nil {
 		return err
 	}
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ //nolint:gosec // Secure/SameSite are set from sm.secure/sm.sameSite (caller-controlled)
 		Name:     sm.cookieName,
 		Value:    token,
 		Path:     "/",
@@ -200,7 +200,7 @@ func (sm *SessionManager) Issue(w http.ResponseWriter, username string) error {
 }
 
 func (sm *SessionManager) Clear(w http.ResponseWriter) {
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ //nolint:gosec // Secure/SameSite are set from sm.secure/sm.sameSite (caller-controlled)
 		Name:     sm.cookieName,
 		Value:    "",
 		Path:     "/",

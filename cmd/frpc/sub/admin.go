@@ -21,12 +21,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rodaine/table"
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/pkg/config"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	clientsdk "github.com/laosan-xx/frp/pkg/sdk/client"
+	"github.com/rodaine/table"
+	"github.com/spf13/cobra"
 )
 
 var adminAPITimeout = 30 * time.Second

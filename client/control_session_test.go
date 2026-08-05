@@ -23,13 +23,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/proto/wire"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/stretchr/testify/require"
 )
 
 type testConnector struct {

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/pool"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/plugin/client/internal/httpsserver"
 	"github.com/laosan-xx/frp/pkg/util/log"

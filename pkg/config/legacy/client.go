@@ -21,10 +21,9 @@ import (
 	"slices"
 	"strings"
 
-	"gopkg.in/ini.v1"
-
 	legacyauth "github.com/laosan-xx/frp/pkg/auth/legacy"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"gopkg.in/ini.v1"
 )
 
 // ClientCommonConf is the configuration parsed from ini.

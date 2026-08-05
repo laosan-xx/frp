@@ -18,9 +18,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnReadWriteMsg(t *testing.T) {

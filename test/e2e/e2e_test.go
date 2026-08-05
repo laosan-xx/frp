@@ -6,8 +6,6 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/pkg/util/log"
 	// test source
 	"github.com/laosan-xx/frp/test/e2e/framework"
@@ -17,6 +15,7 @@ import (
 	_ "github.com/laosan-xx/frp/test/e2e/v1/basic"
 	_ "github.com/laosan-xx/frp/test/e2e/v1/features"
 	_ "github.com/laosan-xx/frp/test/e2e/v1/plugin"
+	_ "github.com/onsi/ginkgo/v2"
 )
 
 // handleFlags sets up all flags and parses the command line.

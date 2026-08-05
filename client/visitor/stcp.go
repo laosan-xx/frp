@@ -19,7 +19,6 @@ import (
 	"strconv"
 
 	libio "github.com/fatedier/golib/io"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
 )

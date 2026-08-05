@@ -5,11 +5,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/onsi/ginkgo/v2"
-	"github.com/tidwall/gjson"
-
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/tidwall/gjson"
 )
 
 var _ = ginkgo.Describe("[Feature: Annotations]", func() {

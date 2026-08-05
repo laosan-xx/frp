@@ -21,12 +21,11 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"golang.org/x/crypto/ssh"
 )
 
 type Gateway struct {

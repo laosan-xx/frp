@@ -26,8 +26,6 @@ import (
 
 	libio "github.com/fatedier/golib/io"
 	libnet "github.com/fatedier/golib/net"
-	"golang.org/x/time/rate"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
@@ -37,6 +35,7 @@ import (
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
 	"github.com/laosan-xx/frp/pkg/vnet"
+	"golang.org/x/time/rate"
 )
 
 var proxyFactoryRegistry = map[reflect.Type]func(*BaseProxy, v1.ProxyConfigurer) Proxy{}

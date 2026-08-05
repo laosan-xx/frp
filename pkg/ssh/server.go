@@ -25,10 +25,6 @@ import (
 	"time"
 
 	libio "github.com/fatedier/golib/io"
-	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
-	"golang.org/x/crypto/ssh"
-
 	"github.com/laosan-xx/frp/client/proxy"
 	"github.com/laosan-xx/frp/pkg/config"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
@@ -38,6 +34,9 @@ import (
 	"github.com/laosan-xx/frp/pkg/util/util"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
 	"github.com/laosan-xx/frp/pkg/virtual"
+	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
+	"golang.org/x/crypto/ssh"
 )
 
 const (

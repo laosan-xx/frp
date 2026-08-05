@@ -17,9 +17,8 @@ package legacy
 import (
 	"strings"
 
-	"gopkg.in/ini.v1"
-
 	legacyauth "github.com/laosan-xx/frp/pkg/auth/legacy"
+	"gopkg.in/ini.v1"
 )
 
 type HTTPPluginOptions struct {

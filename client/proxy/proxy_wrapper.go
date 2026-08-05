@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/errors"
-
 	"github.com/laosan-xx/frp/client/event"
 	"github.com/laosan-xx/frp/client/health"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"

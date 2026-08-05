@@ -3,9 +3,8 @@ package source
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBaseSourceLoadReturnsClonedConfigurers(t *testing.T) {

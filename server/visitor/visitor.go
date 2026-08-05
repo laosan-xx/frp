@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	libio "github.com/fatedier/golib/io"
-
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/util"
 )

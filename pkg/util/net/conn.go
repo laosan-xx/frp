@@ -25,9 +25,8 @@ import (
 	"time"
 
 	libcrypto "github.com/fatedier/golib/crypto"
-	quic "github.com/quic-go/quic-go"
-
 	"github.com/laosan-xx/frp/pkg/util/xlog"
+	quic "github.com/quic-go/quic-go"
 )
 
 type ContextGetter interface {

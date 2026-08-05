@@ -204,7 +204,7 @@ func saveIPClassCache() {
 	// Write to a temp file then rename, so a crash mid-write does not corrupt
 	// the active database.
 	tmp := ipClassCacheFile + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return
 	}
 	_ = os.Rename(tmp, ipClassCacheFile)

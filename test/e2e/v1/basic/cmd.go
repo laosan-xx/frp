@@ -4,10 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
+	"github.com/onsi/ginkgo/v2"
 )
 
 const (

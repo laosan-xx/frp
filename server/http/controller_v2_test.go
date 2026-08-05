@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/metrics/mem"

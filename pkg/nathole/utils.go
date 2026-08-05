@@ -20,7 +20,6 @@ import (
 	"net"
 
 	"github.com/fatedier/golib/crypto"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 )
 

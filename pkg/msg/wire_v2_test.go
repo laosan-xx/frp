@@ -19,9 +19,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/stretchr/testify/require"
 )
 
 func TestV2ReadWriterRoundTrip(t *testing.T) {

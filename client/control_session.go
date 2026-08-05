@@ -26,8 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
@@ -35,6 +33,7 @@ import (
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/version"
 	"github.com/laosan-xx/frp/pkg/vnet"
+	"github.com/samber/lo"
 )
 
 type controlSessionDialer struct {

@@ -27,8 +27,6 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/net/mux"
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
@@ -39,6 +37,7 @@ import (
 	"github.com/laosan-xx/frp/server/proxy"
 	"github.com/laosan-xx/frp/server/registry"
 	"github.com/laosan-xx/frp/server/visitor"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWriteWithDeadlineTimesOutAndClearsDeadline(t *testing.T) {

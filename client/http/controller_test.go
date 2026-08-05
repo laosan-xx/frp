@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
 	"github.com/laosan-xx/frp/client/configmgmt"
 	"github.com/laosan-xx/frp/client/http/model"
 	"github.com/laosan-xx/frp/client/proxy"

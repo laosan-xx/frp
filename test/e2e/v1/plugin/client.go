@@ -10,9 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/onsi/ginkgo/v2"
-	pp "github.com/pires/go-proxyproto"
-
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/test/e2e/framework"
@@ -22,6 +19,8 @@ import (
 	"github.com/laosan-xx/frp/test/e2e/pkg/cert"
 	"github.com/laosan-xx/frp/test/e2e/pkg/port"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
+	"github.com/onsi/ginkgo/v2"
+	pp "github.com/pires/go-proxyproto"
 )
 
 var _ = ginkgo.Describe("[Feature: Client-Plugins]", func() {

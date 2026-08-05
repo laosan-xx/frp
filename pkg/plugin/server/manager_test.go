@@ -24,7 +24,6 @@ import (
 	"time"
 
 	goliblog "github.com/fatedier/golib/log"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 	frplog "github.com/laosan-xx/frp/pkg/util/log"
 )

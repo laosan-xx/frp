@@ -21,9 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/proto/wire"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAEADCryptoReadWriterRoundTrip(t *testing.T) {

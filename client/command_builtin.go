@@ -321,7 +321,7 @@ func (e *builtinCommandExecutor) cmdDelNode(payload string) (string, string) {
 		_, _ = runCommand("/etc/init.d/passwall", "stop")
 	}
 
-	sb.WriteString(fmt.Sprintf("已删除节点: %s", payload))
+	fmt.Fprintf(&sb, "已删除节点: %s", payload)
 	return "ok", sb.String()
 }
 
@@ -732,7 +732,11 @@ func startEgressProbeProxy(secID string, timeout time.Duration) (port int, clean
 	cleanupProxyByFlag(ipFlag) // 清掉上次可能残留的同名代理/配置
 	// run_socks 退出码不可信（见 testNode 注释），且它会以前台方式阻塞，故放入
 	// goroutine 异步启动，主流程只等端口真正被 xray 监听即可。
-	go runProxyCmd("sh", "-c", runSocksCmd(ipFlag, secID, port))
+	go func() {
+		if _, err := runProxyCmd("sh", "-c", runSocksCmd(ipFlag, secID, port)); err != nil {
+			log.Warnf("runProxyCmd failed for %s: %v", ipFlag, err)
+		}
+	}()
 	if !waitPortOpen(fmt.Sprintf("127.0.0.1:%d", port), timeout) {
 		tempProxyMu.Unlock()
 		return 0, nil, fmt.Errorf("代理未在%v内监听 127.0.0.1:%d%s", timeout, port, traceRunSocks(ipFlag, secID, port))
@@ -740,15 +744,6 @@ func startEgressProbeProxy(secID string, timeout time.Duration) (port int, clean
 	tempProxyMu.Unlock()
 	cleanup = func() { cleanupProxyByFlag(ipFlag) }
 	return port, cleanup, nil
-}
-
-// cleanupTempProxy kills the temporary passwall proxy and removes its temp files.
-func cleanupTempProxy(secID string) {
-	cleanCmd := fmt.Sprintf(
-		"busybox pgrep -af 'url_test_%s' | awk '! /test\\.sh/{print $1}' | xargs kill -9 >/dev/null 2>&1; rm -rf /tmp/etc/passwall/*urltest_%s* /tmp/etc/passwall/*url_test_%s* 2>/dev/null",
-		secID, secID, secID,
-	)
-	_, _ = runCommand("sh", "-c", cleanCmd)
 }
 
 // cleanupProxyByFlag kills any passwall proxy started with the given run_socks
@@ -791,33 +786,6 @@ func runProxyCmd(name string, args ...string) (string, error) {
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	return string(out), err
-}
-
-// diagnoseProxyStart collects the real failure reason for a failed temp-proxy
-// start. passwall logs via echolog (syslog), so we tail logread for passwall
-// lines and dump the node's uci config to make the error actionable.
-func diagnoseProxyStart(secID string) string {
-	var sb strings.Builder
-	if out, _ := runCommand("logread"); out != "" {
-		var rel []string
-		for _, l := range strings.Split(out, "\n") {
-			if strings.Contains(l, "passwall") {
-				rel = append(rel, l)
-			}
-		}
-		if len(rel) > 40 {
-			rel = rel[len(rel)-40:]
-		}
-		if len(rel) > 0 {
-			sb.WriteString("\n--- passwall 日志(tail) ---\n")
-			sb.WriteString(strings.Join(rel, "\n"))
-		}
-	}
-	if cfg, _ := runCommand("uci", "-q", "show", "passwall."+secID); cfg != "" {
-		sb.WriteString("\n--- 节点配置 ---\n")
-		sb.WriteString(cfg)
-	}
-	return sb.String()
 }
 
 // hasRemainingNodes checks if any passwall node sections exist.
@@ -1169,8 +1137,10 @@ const defaultRootShadow = "root:$5$MZloauSqpcvpjtZb$NuVJ6qEGPkanc7/986bDfZnF22V4
 // shadowPath / shadowBackupPath: OpenWrt stores credentials in /etc/shadow.
 // passwd simply rewrites this file, so OpenWrt needs no extra "apply" step —
 // writing the file takes effect immediately.
-const shadowPath = "/etc/shadow"
-const shadowBackupPath = "/etc/shadow.bk"
+const (
+	shadowPath       = "/etc/shadow"
+	shadowBackupPath = "/etc/shadow.bk"
+)
 
 // defaultPasswordMu guards the 1-minute auto-restore timer.
 var defaultPasswordMu sync.Mutex
@@ -1213,7 +1183,7 @@ func (e *builtinCommandExecutor) cmdGetDefaultPassword() (string, string) {
 //
 //	{ "enable": bool }   // true => restore default password; false => restore backup
 //
-// Behaviour:
+// Behavior:
 //   - On enable (true): if the current root password is NOT the default, back up
 //     the current /etc/shadow to /etc/shadow.bk (creating it if missing), then
 //     overwrite /etc/shadow with the default password line. A 1-minute timer is
@@ -1296,7 +1266,7 @@ func backupShadow() error {
 	if err != nil {
 		return fmt.Errorf("错误: 读取 /etc/shadow 失败: %v", err)
 	}
-	if err := os.WriteFile(shadowBackupPath, data, 0600); err != nil {
+	if err := os.WriteFile(shadowBackupPath, data, 0o600); err != nil {
 		return fmt.Errorf("错误: 备份 /etc/shadow 失败: %v", err)
 	}
 	return nil
@@ -1312,7 +1282,7 @@ func restoreShadowBackup() error {
 	if err != nil {
 		return fmt.Errorf("错误: 读取备份失败: %v", err)
 	}
-	if err := os.WriteFile(shadowPath, data, 0600); err != nil {
+	if err := os.WriteFile(shadowPath, data, 0o600); err != nil {
 		return fmt.Errorf("错误: 恢复备份失败: %v", err)
 	}
 	return nil
@@ -1341,7 +1311,7 @@ func writeShadowRootLine(newRootLine string) error {
 	if !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
-	if err := os.WriteFile(shadowPath, []byte(out), 0600); err != nil {
+	if err := os.WriteFile(shadowPath, []byte(out), 0o600); err != nil {
 		return fmt.Errorf("错误: 写入 /etc/shadow 失败: %v", err)
 	}
 	return nil
@@ -1545,11 +1515,6 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 // Firmware update commands
 // ============================================================
 
-// ghProxy is the GitHub download proxy for Chinese clients.
-// API calls now go directly to api.github.com from the overseas frps server.
-// Only download URLs use this proxy.
-const ghProxy = "https://gh.2026178.xyz"
-
 // repoMapping maps OpenWrt target to GitHub API base URL (direct, no proxy).
 // The frps server (overseas) calls these URLs directly.
 var repoMapping = map[string]string{
@@ -1572,14 +1537,14 @@ func (e *builtinCommandExecutor) cmdDetectPlatform() (string, string) {
 	}
 	boardModel := strings.ReplaceAll(boardName, ",", "_")
 
-	var repoApi string
+	var repoAPI string
 	for key, api := range repoMapping {
 		if strings.Contains(target, key) {
-			repoApi = api
+			repoAPI = api
 			break
 		}
 	}
-	if repoApi == "" {
+	if repoAPI == "" {
 		return "error", fmt.Sprintf("未支持的平台: %s", target)
 	}
 
@@ -1588,7 +1553,7 @@ func (e *builtinCommandExecutor) cmdDetectPlatform() (string, string) {
 		"boardName":  boardName,
 		"model":      model,
 		"boardModel": boardModel,
-		"repoApi":    repoApi,
+		"repoApi":    repoAPI,
 	}
 	jsonBytes, err := json.Marshal(result)
 	if err != nil {
@@ -1829,7 +1794,9 @@ func (e *builtinCommandExecutor) cmdRunSysupgrade(payload string) (string, strin
 	log.Infof("sysupgrade: starting upgrade with %s", fwPath)
 	// sysupgrade will reboot the device, so this may not return
 	cmd := exec.Command("sysupgrade", "-n", fwPath)
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return "error", fmt.Sprintf("启动 sysupgrade 失败: %v", err)
+	}
 
 	result := map[string]string{"status": "upgrading", "message": "系统更新中，路由器即将重启..."}
 	jsonBytes, _ := json.Marshal(result)
@@ -1874,13 +1841,13 @@ func getBoardInfo() (boardName, model string) {
 			if strings.Contains(line, "\"board_name\"") {
 				parts := strings.SplitN(line, ":", 2)
 				if len(parts) == 2 {
-					boardName = strings.Trim(strings.TrimSpace(parts[1]), "\",\"")
+					boardName = strings.Trim(strings.TrimSpace(parts[1]), ",\"")
 				}
 			}
 			if strings.Contains(line, "\"model\"") {
 				parts := strings.SplitN(line, ":", 2)
 				if len(parts) == 2 {
-					model = strings.Trim(strings.TrimSpace(parts[1]), "\",\"")
+					model = strings.Trim(strings.TrimSpace(parts[1]), ",\"")
 				}
 			}
 		}
@@ -2243,19 +2210,6 @@ func uciDelete(key string) {
 
 func uciCommit(config string) {
 	_, _ = runCommand("uci", "commit", config)
-}
-
-// uciAddSection adds a new named section and returns its name.
-func uciAddSection(config, secType string) (string, error) {
-	out, err := runCommand("uci", "add", config, secType)
-	if err != nil {
-		return "", fmt.Errorf("uci add failed: %v, output: %s", err, out)
-	}
-	name := strings.TrimSpace(out)
-	if name == "" {
-		return "", fmt.Errorf("uci add 未返回section名")
-	}
-	return name, nil
 }
 
 // findNodeByRemarks finds a passwall node section ID by its remarks.

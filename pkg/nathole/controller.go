@@ -26,13 +26,12 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/errors"
-	"github.com/samber/lo"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/samber/lo"
+	"golang.org/x/sync/errgroup"
 )
 
 // NatHoleTimeout seconds.

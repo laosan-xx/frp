@@ -18,9 +18,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"gopkg.in/ini.v1"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
+	"gopkg.in/ini.v1"
 )
 
 type ProxyType string

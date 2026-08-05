@@ -20,9 +20,8 @@ import (
 	"slices"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/util/validation"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 func validateProxyBaseConfigForClient(c *v1.ProxyBaseConfig) error {

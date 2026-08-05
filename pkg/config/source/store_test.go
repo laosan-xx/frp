@@ -20,10 +20,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/util/jsonx"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoreSource_AddProxyAndVisitor_DoesNotApplyRuntimeDefaults(t *testing.T) {

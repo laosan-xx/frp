@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/fatedier/golib/errors"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 )
 

@@ -24,18 +24,17 @@ import (
 	"strings"
 	"text/template"
 
-	toml "github.com/pelletier/go-toml/v2"
-	"github.com/samber/lo"
-	"gopkg.in/ini.v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/yaml"
-
 	"github.com/laosan-xx/frp/pkg/config/legacy"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/config/v1/validation"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/util/jsonx"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	toml "github.com/pelletier/go-toml/v2"
+	"github.com/samber/lo"
+	"gopkg.in/ini.v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 var glbEnvs map[string]string

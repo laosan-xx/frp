@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/errors"
-
 	"github.com/laosan-xx/frp/pkg/util/log"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 	"github.com/laosan-xx/frp/pkg/util/xlog"

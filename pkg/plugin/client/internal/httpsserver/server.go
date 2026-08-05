@@ -22,10 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/transport"
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/samber/lo"
 )
 
 func New(handler http.Handler, crtPath, keyPath string, enableHTTP2 *bool) (*http.Server, error) {

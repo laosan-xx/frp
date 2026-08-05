@@ -6,14 +6,13 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/onsi/ginkgo/v2"
-
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
 	"github.com/laosan-xx/frp/test/e2e/mock/server/streamserver"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
 	"github.com/laosan-xx/frp/test/e2e/pkg/rpc"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var _ = ginkgo.Describe("[Feature: TCPMUX httpconnect]", func() {

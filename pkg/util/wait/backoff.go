@@ -18,9 +18,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"k8s.io/utils/clock"
-
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"k8s.io/utils/clock"
 )
 
 type BackoffFunc func(previousDuration time.Duration, previousConditionError bool) time.Duration

@@ -25,12 +25,11 @@ import (
 	"time"
 
 	"github.com/fatedier/golib/pool"
-	"golang.org/x/net/ipv4"
-	"k8s.io/apimachinery/pkg/util/sets"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
+	"golang.org/x/net/ipv4"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (

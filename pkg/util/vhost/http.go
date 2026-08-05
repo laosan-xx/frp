@@ -28,7 +28,6 @@ import (
 
 	libio "github.com/fatedier/golib/io"
 	"github.com/fatedier/golib/pool"
-
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
 	"github.com/laosan-xx/frp/pkg/util/log"
 )

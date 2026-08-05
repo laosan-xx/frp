@@ -17,9 +17,8 @@ package v1
 import (
 	"os"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/samber/lo"
 )
 
 type ClientConfig struct {

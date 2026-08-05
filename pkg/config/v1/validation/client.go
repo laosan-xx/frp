@@ -20,11 +20,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/samber/lo"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/policy/featuregate"
 	"github.com/laosan-xx/frp/pkg/policy/security"
+	"github.com/samber/lo"
 )
 
 func (v *ConfigValidator) ValidateClientCommonConfig(c *v1.ClientCommonConfig) (Warning, error) {

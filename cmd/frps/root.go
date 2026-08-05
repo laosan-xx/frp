@@ -20,8 +20,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/pkg/config"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/config/v1/validation"
@@ -29,6 +27,7 @@ import (
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/version"
 	"github.com/laosan-xx/frp/server"
+	"github.com/spf13/cobra"
 )
 
 var (

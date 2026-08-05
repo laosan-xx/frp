@@ -9,11 +9,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/test/e2e/mock/server"
 	"github.com/laosan-xx/frp/test/e2e/pkg/port"
 	"github.com/laosan-xx/frp/test/e2e/pkg/process"
+	"github.com/onsi/ginkgo/v2"
 )
 
 type Options struct {

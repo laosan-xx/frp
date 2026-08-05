@@ -23,14 +23,13 @@ import (
 	"time"
 
 	fmux "github.com/hashicorp/yamux"
-	"github.com/quic-go/quic-go"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/naming"
 	"github.com/laosan-xx/frp/pkg/nathole"
 	"github.com/laosan-xx/frp/pkg/transport"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/quic-go/quic-go"
 )
 
 func init() {

@@ -26,8 +26,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/client"
 	"github.com/laosan-xx/frp/pkg/config"
 	"github.com/laosan-xx/frp/pkg/config/source"
@@ -37,6 +35,7 @@ import (
 	"github.com/laosan-xx/frp/pkg/policy/security"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/version"
+	"github.com/spf13/cobra"
 )
 
 var (

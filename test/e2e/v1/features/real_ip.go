@@ -7,9 +7,6 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/onsi/ginkgo/v2"
-	pp "github.com/pires/go-proxyproto"
-
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/test/e2e/framework"
@@ -18,6 +15,8 @@ import (
 	"github.com/laosan-xx/frp/test/e2e/mock/server/streamserver"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
 	"github.com/laosan-xx/frp/test/e2e/pkg/rpc"
+	"github.com/onsi/ginkgo/v2"
+	pp "github.com/pires/go-proxyproto"
 )
 
 var _ = ginkgo.Describe("[Feature: Real IP]", func() {

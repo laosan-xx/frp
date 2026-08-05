@@ -5,12 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/onsi/ginkgo/v2"
-
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/test/e2e/framework"
 	"github.com/laosan-xx/frp/test/e2e/framework/consts"
 	"github.com/laosan-xx/frp/test/e2e/pkg/request"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var _ = ginkgo.Describe("[Feature: Monitor]", func() {

@@ -64,6 +64,8 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
+
+defineOptions({ name: 'LoginView' })
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'

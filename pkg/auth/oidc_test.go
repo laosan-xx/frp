@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/stretchr/testify/require"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
+	"github.com/stretchr/testify/require"
 )
 
 type mockTokenVerifier struct{}

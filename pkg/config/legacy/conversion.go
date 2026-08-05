@@ -17,10 +17,9 @@ package legacy
 import (
 	"strings"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/samber/lo"
 )
 
 func Convert_ClientCommonConf_To_v1(conf *ClientCommonConf) *v1.ClientCommonConfig {

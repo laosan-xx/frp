@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPServerProtocols(t *testing.T) {

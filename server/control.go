@@ -24,8 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/auth"
 	"github.com/laosan-xx/frp/pkg/config"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
@@ -40,6 +38,7 @@ import (
 	"github.com/laosan-xx/frp/server/metrics"
 	"github.com/laosan-xx/frp/server/proxy"
 	"github.com/laosan-xx/frp/server/registry"
+	"github.com/samber/lo"
 )
 
 type ControlID uint64

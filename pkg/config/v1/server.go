@@ -15,10 +15,9 @@
 package v1
 
 import (
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
 	"github.com/laosan-xx/frp/pkg/util/util"
+	"github.com/samber/lo"
 )
 
 type ServerConfig struct {

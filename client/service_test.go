@@ -9,10 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/samber/lo"
-
 	"github.com/laosan-xx/frp/pkg/config/source"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
+	"github.com/samber/lo"
 )
 
 type failingConnector struct {

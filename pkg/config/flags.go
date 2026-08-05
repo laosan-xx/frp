@@ -19,12 +19,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-
 	"github.com/laosan-xx/frp/pkg/config/types"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/config/v1/validation"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // WordSepNormalizeFunc changes all flags that contain "_" separators

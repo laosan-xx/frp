@@ -21,7 +21,6 @@ import (
 
 	"github.com/fatedier/golib/errors"
 	"github.com/fatedier/golib/pool"
-
 	"github.com/laosan-xx/frp/pkg/msg"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
 )

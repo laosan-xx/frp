@@ -25,7 +25,6 @@ import (
 
 	"github.com/fatedier/golib/errors"
 	libio "github.com/fatedier/golib/io"
-
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
 	"github.com/laosan-xx/frp/pkg/proto/udp"

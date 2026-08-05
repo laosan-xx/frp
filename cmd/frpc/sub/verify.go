@@ -18,11 +18,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"github.com/laosan-xx/frp/pkg/config"
 	"github.com/laosan-xx/frp/pkg/config/v1/validation"
 	"github.com/laosan-xx/frp/pkg/policy/security"
+	"github.com/spf13/cobra"
 )
 
 func init() {
