@@ -21,11 +21,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
       - name: Build web assets (frps)
-        run: make build
+        run: npm run build
         working-directory: web/frps
       - name: Build web assets (frpc)
-        run: make build
+        run: npm run build
         working-directory: web/frpc
       - name: Make All
         run: |
