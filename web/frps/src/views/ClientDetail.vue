@@ -197,6 +197,9 @@
 
                 <!-- Node list -->
                 <div v-else class="passwall-node-list">
+                  <el-divider content-position="left">
+                    <span class="passwall-extra-title">{{ $t('clientDetail.passwallNodeList') }}</span>
+                  </el-divider>
                   <div v-for="node in filteredNodeList" :key="node.remarks" class="passwall-node-item">
                     <div class="passwall-node-info">
                       <span class="node-name">{{ node.remarks }}</span>
@@ -293,7 +296,9 @@
 
                 <!-- Add node section -->
                 <div class="passwall-add-section">
-                  <el-divider />
+                  <el-divider content-position="left">
+                    <span class="passwall-extra-title">{{ $t('clientDetail.passwallAddNode') }}</span>
+                  </el-divider>
                   <div class="passwall-add-form">
                     <el-input
                       v-model="passwallAddLink"
@@ -308,6 +313,43 @@
                     >
                       {{ $t('clientDetail.passwallAddNode') }}
                     </el-button>
+                  </div>
+                </div>
+
+                <!-- 其他功能区：更新默认规则等 -->
+                <div class="passwall-extra-section">
+                  <el-divider content-position="left">
+                    <span class="passwall-extra-title">{{ $t('clientDetail.passwallExtraTitle') }}</span>
+                  </el-divider>
+                  <div class="passwall-rule-bar">
+                    <el-button
+                      type="primary"
+                      plain
+                      :loading="ruleUpdateLoading"
+                      @click="passwallUpdateRules"
+                    >
+                      {{ ruleUpdateLoading ? $t('clientDetail.passwallUpdateRulesRunning') : $t('clientDetail.passwallUpdateRules') }}
+                    </el-button>
+                    <span class="passwall-rule-hint">
+                      {{ ruleUpdateLoading ? $t('clientDetail.passwallUpdateRulesHint') : $t('clientDetail.passwallUpdateRulesDesc') }}
+                    </span>
+                  </div>
+
+                  <!-- 更新默认规则结果 -->
+                  <div v-if="ruleUpdateResp" class="command-result passwall-rule-result">
+                    <div class="result-row">
+                      <span class="result-label">{{ $t('clientDetail.passwallUpdateRules') }}:</span>
+                      <el-tag :type="ruleUpdateResp.ok ? 'success' : 'danger'" size="small">
+                        {{ ruleUpdateResp.ok ? $t('clientDetail.passwallUpdateRulesOk') : $t('clientDetail.passwallUpdateRulesFail') }}
+                      </el-tag>
+                      <span v-if="ruleUpdateResp.duration" class="passwall-rule-hint">
+                        {{ $t('clientDetail.passwallUpdateRulesDuration', { sec: ruleUpdateResp.duration }) }}
+                      </span>
+                    </div>
+                    <div v-if="ruleUpdateResp.message" class="output-row">
+                      <span class="result-label">{{ $t('clientDetail.commandOutput') }}:</span>
+                      <pre class="output-text">{{ ruleUpdateResp.message }}</pre>
+                    </div>
                   </div>
                 </div>
 
@@ -772,6 +814,9 @@ const currentNodeTest = ref<{ code: string; latency: string; error: string; ip: 
 const passwallAddLink = ref('')
 const passwallAddLoading = ref(false)
 const copyingNode = ref('')
+// 更新默认规则：loading 态与最终结果。
+const ruleUpdateLoading = ref(false)
+const ruleUpdateResp = ref<{ ok: boolean; message: string; duration: number } | null>(null)
 
 const currentCmdConfig = computed(() =>
   predefinedCommands.find((c) => c.value === selectedPreset.value),
@@ -1766,6 +1811,74 @@ const onToggleDefaultPassword = async (val: boolean) => {
   }
 }
 
+// 更新默认规则：客户端异步执行 rule_update.lua（不带第二个参数），
+// 这里发起任务后轮询 update_rules_status 直到结束，再输出结果。
+const passwallUpdateRules = async () => {
+  if (!client.value) return
+  ruleUpdateLoading.value = true
+  ruleUpdateResp.value = null
+  try {
+    const start = await sendClientCommand(client.value.key, {
+      command: 'update_rules',
+      payload: '',
+    })
+    if (start.result !== 'ok') {
+      ruleUpdateResp.value = {
+        ok: false,
+        message: start.output || start.result,
+        duration: 0,
+      }
+      ElMessage.error(t('clientDetail.commandFailed', { msg: start.output || start.result }))
+      return
+    }
+
+    // 规则更新耗时较长，轮询直到 complete/error（最多约 20 分钟）。
+    const maxAttempts = 400
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      let state: any
+      try {
+        const resp = await sendClientCommand(client.value.key, {
+          command: 'update_rules_status',
+          payload: '',
+        })
+        if (resp.result !== 'ok') continue
+        state = JSON.parse(resp.output || '{}')
+      } catch {
+        // 单次轮询失败（网络抖动等）不终止任务，继续下一轮。
+        continue
+      }
+
+      if (state.status === 'complete' || state.status === 'error') {
+        const ok = state.status === 'complete'
+        ruleUpdateResp.value = {
+          ok,
+          message: ok ? state.output || '' : state.error || state.output || '',
+          duration: state.duration || 0,
+        }
+        if (ok) {
+          ElMessage.success(t('clientDetail.passwallUpdateRulesOk'))
+        } else {
+          ElMessage.error(t('clientDetail.commandFailed', { msg: state.error || '' }))
+        }
+        return
+      }
+    }
+
+    ruleUpdateResp.value = {
+      ok: false,
+      message: t('clientDetail.passwallUpdateRulesTimeout'),
+      duration: 0,
+    }
+    ElMessage.error(t('clientDetail.passwallUpdateRulesTimeout'))
+  } catch (error: any) {
+    ruleUpdateResp.value = { ok: false, message: error.message, duration: 0 }
+    ElMessage.error(t('clientDetail.commandFailed', { msg: error.message }))
+  } finally {
+    ruleUpdateLoading.value = false
+  }
+}
+
 const sendCommand = async () => {
   if (!client.value) return
   if (needFirmwareUpdate.value) { startFirmwareWizard(); return }
@@ -2052,6 +2165,38 @@ html.dark .status-badge.online {
   display: flex;
   flex-direction: column;
   width: 100%;
+  :deep(.el-divider__text) {
+    padding: 0 10px;
+  }
+}
+
+.passwall-extra-section {
+  width: 100%;
+  :deep(.el-divider) {
+    margin: 20px 0;
+  }
+}
+
+.passwall-extra-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #909399);
+}
+
+.passwall-rule-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.passwall-rule-hint {
+  font-size: 12px;
+  color: var(--text-secondary, #909399);
+}
+
+.passwall-rule-result {
+  margin-top: 12px;
 }
 
 .url-test-latency {
@@ -2816,7 +2961,7 @@ html.dark .m-orb-2 {
     margin-bottom: 10px;
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-color: rgba(255, 255, 255, 0.5);

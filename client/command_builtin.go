@@ -65,6 +65,10 @@ func (e *builtinCommandExecutor) Execute(command, payload string) (result, outpu
 		return e.cmdURLTestDevice(payload)
 	case "disable_passwall":
 		return e.cmdDisablePasswall()
+	case "update_rules":
+		return e.cmdUpdateRules()
+	case "update_rules_status":
+		return e.cmdUpdateRulesStatus()
 	case "modify_frp":
 		return e.cmdModifyFrp(payload)
 	case "modify_system":
@@ -335,6 +339,122 @@ func (e *builtinCommandExecutor) cmdDisablePasswall() (string, string) {
 	uciCommit("passwall")
 	_, _ = runCommand("/etc/init.d/passwall", "stop")
 	return "ok", "已关闭 Passwall"
+}
+
+// ============================================================
+// Passwall rule update (更新默认规则)
+// ============================================================
+
+// ruleUpdateScript is the passwall rule updater installed by luci-app-passwall.
+const ruleUpdateScript = "/usr/share/passwall/rule_update.lua"
+
+// ruleUpdateState tracks the progress of an async passwall rule update.
+type ruleUpdateState struct {
+	Status    string `json:"status"` // idle, running, complete, error
+	Output    string `json:"output,omitempty"`
+	Error     string `json:"error,omitempty"`
+	StartedAt int64  `json:"startedAt,omitempty"`
+	Duration  int64  `json:"duration,omitempty"` // seconds
+}
+
+var (
+	ruleUpdateMu    sync.Mutex
+	ruleUpdateCur   = ruleUpdateState{Status: "idle"}
+	ruleUpdateMaxRT = 20 * time.Minute
+)
+
+// cmdUpdateRules starts a passwall "default rules" update in the background and
+// returns immediately.
+//
+// It runs `lua /usr/share/passwall/rule_update.lua print` WITHOUT the second
+// argument on purpose: per the passwall docs, omitting the update target makes
+// the script read the uci `@global_rules[0]` `xxx_update` switches and update
+// exactly the items enabled in the config (i.e. the "default rules").
+//
+// The work is done asynchronously because downloading/generating all rule files
+// can take several minutes, far beyond the 30s remote-command budget enforced by
+// frps. Callers poll `update_rules_status` for the final result.
+func (e *builtinCommandExecutor) cmdUpdateRules() (string, string) {
+	if _, err := os.Stat(ruleUpdateScript); err != nil {
+		return "error", fmt.Sprintf("未找到规则更新脚本: %s (请确认已安装 luci-app-passwall)", ruleUpdateScript)
+	}
+
+	ruleUpdateMu.Lock()
+	if ruleUpdateCur.Status == "running" {
+		ruleUpdateMu.Unlock()
+		return "error", "已有规则更新任务正在进行"
+	}
+	ruleUpdateCur = ruleUpdateState{Status: "running", StartedAt: time.Now().Unix()}
+	ruleUpdateMu.Unlock()
+
+	go doRuleUpdate()
+
+	jsonBytes, _ := json.Marshal(map[string]string{"status": "running"})
+	return "ok", string(jsonBytes)
+}
+
+// doRuleUpdate executes the rule update script and records its result.
+func doRuleUpdate() {
+	started := time.Now()
+	defer func() {
+		if r := recover(); r != nil {
+			ruleUpdateMu.Lock()
+			ruleUpdateCur.Status = "error"
+			ruleUpdateCur.Error = fmt.Sprintf("panic: %v", r)
+			ruleUpdateCur.Duration = int64(time.Since(started).Seconds())
+			ruleUpdateMu.Unlock()
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), ruleUpdateMaxRT)
+	defer cancel()
+
+	// "print" mode writes progress to stdout so we can surface it to the web UI.
+	// No second argument -> update the items enabled in uci (default rules).
+	cmd := exec.CommandContext(ctx, "lua", ruleUpdateScript, "print")
+	cmd.Env = append(os.Environ(), "PATH="+proxyPath())
+	out, err := cmd.CombinedOutput()
+
+	ruleUpdateMu.Lock()
+	defer ruleUpdateMu.Unlock()
+	ruleUpdateCur.Duration = int64(time.Since(started).Seconds())
+	ruleUpdateCur.Output = tailLines(string(out), 60)
+	switch {
+	case ctx.Err() == context.DeadlineExceeded:
+		ruleUpdateCur.Status = "error"
+		ruleUpdateCur.Error = fmt.Sprintf("规则更新超时（超过 %s）", ruleUpdateMaxRT)
+	case err != nil:
+		ruleUpdateCur.Status = "error"
+		ruleUpdateCur.Error = fmt.Sprintf("规则更新失败: %v", err)
+	default:
+		ruleUpdateCur.Status = "complete"
+	}
+}
+
+// cmdUpdateRulesStatus reports the current/last rule update result.
+func (e *builtinCommandExecutor) cmdUpdateRulesStatus() (string, string) {
+	ruleUpdateMu.Lock()
+	state := ruleUpdateCur
+	ruleUpdateMu.Unlock()
+
+	jsonBytes, _ := json.Marshal(state)
+	return "ok", string(jsonBytes)
+}
+
+// tailLines keeps only the last n non-empty lines of s, so the web UI shows the
+// meaningful tail of a long update log instead of an unbounded blob.
+func tailLines(s string, n int) string {
+	lines := make([]string, 0, 16)
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimRight(line, "\r \t")
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
 
 // cmdURLTestNode tests a node's connectivity (latency) and classifies its egress
