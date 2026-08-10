@@ -98,7 +98,7 @@ func fetchFirmwareReleases(ctx *httppkg.Context, githubToken string) (any, error
 
 	// Build request to GitHub API (direct, no proxy).
 	client := &http.Client{Timeout: 20 * time.Second}
-	apiReq, err := http.NewRequest("GET", repoAPI+"/releases?per_page=20", nil)
+	apiReq, err := http.NewRequest("GET", repoAPI+"/releases?per_page=30", nil)
 	if err != nil {
 		return nil, fmt.Errorf("构建请求失败: %v", err)
 	}

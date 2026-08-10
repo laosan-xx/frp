@@ -200,7 +200,7 @@
                   <el-divider content-position="left">
                     <span class="passwall-extra-title">{{ $t('clientDetail.passwallNodeList') }}</span>
                   </el-divider>
-                  <div v-for="node in filteredNodeList" :key="node.remarks" class="passwall-node-item">
+                  <div v-for="node in filteredNodeList" :key="node.id" class="passwall-node-item">
                     <div class="passwall-node-info">
                       <span class="node-name">{{ node.remarks }}</span>
                       <span class="node-meta">{{ node.type }} | {{ node.address }}:{{ node.port }}</span>
@@ -210,23 +210,23 @@
                         size="small"
                         class="url-test-btn site-tag"
                         :class="{
-                          'url-test-loading': passwallNodeTestState[node.remarks]?.loading,
-                          'url-test-ok': !passwallNodeTestState[node.remarks]?.loading && passwallNodeTestState[node.remarks]?.code && passwallNodeTestState[node.remarks]?.code !== '0' && passwallNodeTestState[node.remarks]?.code !== '000',
-                          'url-test-fail': !passwallNodeTestState[node.remarks]?.loading && (passwallNodeTestState[node.remarks]?.error || passwallNodeTestState[node.remarks]?.code === '0' || passwallNodeTestState[node.remarks]?.code === '000')
+                          'url-test-loading': passwallNodeTestState[node.id]?.loading,
+                          'url-test-ok': !passwallNodeTestState[node.id]?.loading && passwallNodeTestState[node.id]?.code && passwallNodeTestState[node.id]?.code !== '0' && passwallNodeTestState[node.id]?.code !== '000',
+                          'url-test-fail': !passwallNodeTestState[node.id]?.loading && (passwallNodeTestState[node.id]?.error || passwallNodeTestState[node.id]?.code === '0' || passwallNodeTestState[node.id]?.code === '000')
                         }"
-                        :disabled="passwallNodeTestState[node.remarks]?.loading || !!Object.keys(passwallNodeLoading).length"
-                        @click="passwallURLTest(node.remarks, true)"
+                        :disabled="passwallNodeTestState[node.id]?.loading || !!Object.keys(passwallNodeLoading).length"
+                        @click="passwallURLTest(node.id, true)"
                       >
-                        <template v-if="passwallNodeTestState[node.remarks]?.loading">
+                        <template v-if="passwallNodeTestState[node.id]?.loading">
                           <el-icon class="is-loading"><Loading /></el-icon>
                         </template>
-                        <template v-else-if="passwallNodeTestState[node.remarks]?.code && passwallNodeTestState[node.remarks]?.code !== '0' && passwallNodeTestState[node.remarks]?.code !== '000'">
-                          {{ passwallNodeTestState[node.remarks]?.latency ? (parseFloat(passwallNodeTestState[node.remarks].latency) * 1000).toFixed(0) + ' ms' : passwallNodeTestState[node.remarks]?.code }}
+                        <template v-else-if="passwallNodeTestState[node.id]?.code && passwallNodeTestState[node.id]?.code !== '0' && passwallNodeTestState[node.id]?.code !== '000'">
+                          {{ passwallNodeTestState[node.id]?.latency ? (parseFloat(passwallNodeTestState[node.id].latency) * 1000).toFixed(0) + ' ms' : passwallNodeTestState[node.id]?.code }}
                         </template>
-                        <template v-else-if="passwallNodeTestState[node.remarks]?.error">
+                        <template v-else-if="passwallNodeTestState[node.id]?.error">
                           {{ $t('clientDetail.passwallURLTestFail') }}
                         </template>
-                        <template v-else-if="passwallNodeTestState[node.remarks]?.code === '000'">
+                        <template v-else-if="passwallNodeTestState[node.id]?.code === '000'">
                           {{ $t('clientDetail.passwallURLTestFail') }}
                         </template>
                         <template v-else>
@@ -236,10 +236,10 @@
                       <el-button
                         size="small"
                         type="info"
-                        :loading="copyingNode === node.remarks"
-                        @click="copyNode(node.remarks)"
+                        :loading="copyingNode === node.id"
+                        @click="copyNode(node.id)"
                       >
-                        <span v-if="copyingNode !== node.remarks">{{ $t('clientDetail.copyNode') }}</span>
+                        <span v-if="copyingNode !== node.id">{{ $t('clientDetail.copyNode') }}</span>
                       </el-button>
                       <!-- Passwall running: current node shows 停用, others show 切换 -->
                       <template v-if="passwallEnabled">
@@ -259,11 +259,11 @@
                           size="small"
                           type="primary"
                           class="site-tag"
-                          :loading="passwallNodeLoading[node.remarks] === 'enable'"
+                          :loading="passwallNodeLoading[node.id] === 'enable'"
                           :disabled="!!Object.keys(passwallNodeLoading).length"
-                          @click="passwallEnableNode(node.remarks)"
+                          @click="passwallEnableNode(node.id)"
                         >
-                          <span v-if="passwallNodeLoading[node.remarks] !== 'enable'">{{ $t('clientDetail.passwallSwitch') }}</span>
+                          <span v-if="passwallNodeLoading[node.id] !== 'enable'">{{ $t('clientDetail.passwallSwitch') }}</span>
                         </el-button>
                       </template>
                       <!-- Passwall stopped: all nodes show 启用 -->
@@ -272,22 +272,22 @@
                         size="small"
                         type="primary"
                         class="site-tag"
-                        :loading="passwallNodeLoading[node.remarks] === 'enable'"
+                        :loading="passwallNodeLoading[node.id] === 'enable'"
                         :disabled="!!Object.keys(passwallNodeLoading).length"
-                        @click="passwallEnableNode(node.remarks)"
+                        @click="passwallEnableNode(node.id)"
                       >
-                        <span v-if="passwallNodeLoading[node.remarks] !== 'enable'">{{ $t('clientDetail.passwallEnable') }}</span>
+                        <span v-if="passwallNodeLoading[node.id] !== 'enable'">{{ $t('clientDetail.passwallEnable') }}</span>
                       </el-button>
                       <!-- Delete always shown -->
                       <el-button
                         size="small"
                         type="danger"
                         class="site-tag"
-                        :loading="passwallNodeLoading[node.remarks] === 'delete'"
+                        :loading="passwallNodeLoading[node.id] === 'delete'"
                         :disabled="!!Object.keys(passwallNodeLoading).length"
-                        @click="passwallDeleteNode(node.remarks)"
+                        @click="passwallDeleteNode(node.id)"
                       >
-                        <span v-if="passwallNodeLoading[node.remarks] !== 'delete'">{{ $t('clientDetail.passwallDelete') }}</span>
+                        <span v-if="passwallNodeLoading[node.id] !== 'delete'">{{ $t('clientDetail.passwallDelete') }}</span>
                       </el-button>
                     </div>
 
@@ -786,6 +786,7 @@ const predefinedCommands = [
 ]
 
 interface NodeItem {
+  id: string
   remarks: string
   type: string
   address: string
@@ -1111,13 +1112,13 @@ const fetchCurrentNodeInfo = async () => {
   }
 }
 
-const passwallEnableNode = async (remarks: string) => {
+const passwallEnableNode = async (id: string) => {
   if (!client.value) return
-  passwallNodeLoading.value = { [remarks]: 'enable' }
+  passwallNodeLoading.value = { [id]: 'enable' }
   try {
     const resp = await sendClientCommand(client.value.key, {
       command: 'set_node',
-      payload: remarks,
+      payload: id,
     })
     // 启用节点不展示命令结果块（用户要求），仅用消息提示。
     if (resp.result === 'ok') {
@@ -1155,13 +1156,13 @@ const passwallDisableNode = async () => {
   }
 }
 
-const passwallDeleteNode = async (remarks: string) => {
+const passwallDeleteNode = async (id: string) => {
   if (!client.value) return
-  passwallNodeLoading.value = { [remarks]: 'delete' }
+  passwallNodeLoading.value = { [id]: 'delete' }
   try {
     const resp = await sendClientCommand(client.value.key, {
       command: 'del_node',
-      payload: remarks,
+      payload: id,
     })
     // 删除节点不展示命令结果块（用户要求），仅用消息提示。
     if (resp.result === 'ok') {
@@ -1178,33 +1179,34 @@ const passwallDeleteNode = async (remarks: string) => {
 }
 
 // 列表里点“测试”按钮：skipIP=true 走 url_test_node_noiip，不查 ip-api（IP 信息只由当前节点面板查询）。
-const passwallURLTest = async (remarks: string, skipIP = false) => {
+// 使用节点唯一 id（uci section）作为 key，避免同备注节点互相覆盖状态。
+const passwallURLTest = async (id: string, skipIP = false) => {
   if (!client.value) return
-  passwallNodeTestState.value = { ...passwallNodeTestState.value, [remarks]: { loading: true, code: '', latency: '', error: '', ip: '', location: '', isp: '', ip_country: '', ip_type: '', is_isp: '' } }
+  passwallNodeTestState.value = { ...passwallNodeTestState.value, [id]: { loading: true, code: '', latency: '', error: '', ip: '', location: '', isp: '', ip_country: '', ip_type: '', is_isp: '' } }
   try {
     const resp = await sendClientCommand(client.value.key, {
       command: skipIP ? 'url_test_node_noiip' : 'url_test_node',
-      payload: remarks,
+      payload: id,
     })
     if (resp.result === 'ok') {
       const data = JSON.parse(resp.output)
-      passwallNodeTestState.value = { ...passwallNodeTestState.value, [remarks]: { loading: false, code: data.code || '0', latency: data.latency || '', error: '', ip: data.ip || '', location: data.location || '', isp: data.isp || '', ip_country: data.ip_country || '', ip_type: data.ip_type || '', is_isp: data.is_isp || '' } }
+      passwallNodeTestState.value = { ...passwallNodeTestState.value, [id]: { loading: false, code: data.code || '0', latency: data.latency || '', error: '', ip: data.ip || '', location: data.location || '', isp: data.isp || '', ip_country: data.ip_country || '', ip_type: data.ip_type || '', is_isp: data.is_isp || '' } }
     } else {
-      passwallNodeTestState.value = { ...passwallNodeTestState.value, [remarks]: { loading: false, code: '', latency: '', error: resp.output || resp.result, ip: '', location: '', isp: '' } }
+      passwallNodeTestState.value = { ...passwallNodeTestState.value, [id]: { loading: false, code: '', latency: '', error: resp.output || resp.result, ip: '', location: '', isp: '' } }
     }
   } catch (error: any) {
-    passwallNodeTestState.value = { ...passwallNodeTestState.value, [remarks]: { loading: false, code: '', latency: '', error: error.message, ip: '', location: '', isp: '' } }
+    passwallNodeTestState.value = { ...passwallNodeTestState.value, [id]: { loading: false, code: '', latency: '', error: error.message, ip: '', location: '', isp: '' } }
   }
 }
 
 // 复制节点：调用 node_export 获取节点分享链接并写入剪贴板。
-const copyNode = async (remarks: string) => {
+const copyNode = async (id: string) => {
   if (!client.value) return
-  copyingNode.value = remarks
+  copyingNode.value = id
   try {
     const resp = await sendClientCommand(client.value.key, {
       command: 'node_export',
-      payload: remarks,
+      payload: id,
     })
     if (resp.result === 'ok' && resp.output) {
       try {

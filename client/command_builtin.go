@@ -139,6 +139,7 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 
 // nodeInfo represents a single passwall node for JSON output.
 type nodeInfo struct {
+	ID      string `json:"id"`      // unique uci section id (e.g. "nodes", "nodes[0]", "cfg0x...")
 	Remarks string `json:"remarks"`
 	Type    string `json:"type"`
 	Address string `json:"address"`
@@ -187,6 +188,7 @@ func (e *builtinCommandExecutor) cmdGetNodes() (string, string) {
 			activeRemarks = remarks
 		}
 		nodes = append(nodes, nodeInfo{
+			ID:      secID,
 			Remarks: remarks,
 			Type:    uciGet("passwall." + secID + ".type"),
 			Address: uciGet("passwall." + secID + ".address"),
@@ -225,7 +227,11 @@ func (e *builtinCommandExecutor) cmdSetNode(payload string) (string, string) {
 		return "error", "错误: 请输入节点备注名"
 	}
 
-	secID := findNodeByRemarks(payload)
+	secID := findNodeByID(payload)
+	if secID == "" {
+		// Fallback: treat payload as remarks (legacy).
+		secID = findNodeByRemarks(payload)
+	}
 	if secID == "" {
 		// Detailed diagnostics using EXACT same logic as findNodeByRemarks
 		output, _ := runCommand("uci", "-q", "show", "passwall")
@@ -288,13 +294,17 @@ func (e *builtinCommandExecutor) cmdSetNode(payload string) (string, string) {
 	return "ok", fmt.Sprintf("已启用节点: %s (section=%s)", payload, secID)
 }
 
-// cmdDelNode deletes a node by its remarks name.
+// cmdDelNode deletes a node by its unique id (uci section), with remarks fallback.
 func (e *builtinCommandExecutor) cmdDelNode(payload string) (string, string) {
 	if payload == "" {
 		return "error", "错误: 请输入要删除的节点名称"
 	}
 
-	target := findNodeByRemarks(payload)
+	target := findNodeByID(payload)
+	if target == "" {
+		// Fallback: treat payload as remarks (legacy).
+		target = findNodeByRemarks(payload)
+	}
 	if target == "" {
 		return "error", fmt.Sprintf("错误: 找不到节点 '%s'", payload)
 	}
@@ -495,7 +505,11 @@ func (e *builtinCommandExecutor) testNode(payload string, skipIP bool) (string, 
 	}
 	remarks := strings.TrimSpace(payload)
 
-	secID := findNodeByRemarks(remarks)
+	secID := findNodeByID(remarks)
+	if secID == "" {
+		// Fallback: treat payload as remarks (legacy / direct call).
+		secID = findNodeByRemarks(remarks)
+	}
 	if secID == "" {
 		return "error", fmt.Sprintf("错误: 找不到节点 '%s'", remarks)
 	}
@@ -1148,17 +1162,21 @@ type wifiBand struct {
 }
 
 // bandOrder returns a sort weight so bands render in a stable, intuitive
-// order: 2.4G first, then 5G, then 5.8G, then 6G, unknown bands last.
+// order: 2.4G first, then 5.2G, 5.5G, 5G, 5.8G, then 6G, unknown bands last.
 func bandOrder(label string) int {
 	switch label {
 	case "2.4G":
 		return 0
-	case "5G":
+	case "5.2G":
 		return 1
-	case "5.8G":
+	case "5.5G":
 		return 2
-	case "6G":
+	case "5G":
 		return 3
+	case "5.8G":
+		return 4
+	case "6G":
+		return 5
 	}
 	return 9
 }
@@ -1178,11 +1196,18 @@ func baseBandLabel(band string) string {
 	return band
 }
 
-// channelToLabel decides whether a 5g radio is the common 5.2G band or the
-// 5.8G band. OpenWrt exposes both as band "5g" and only differs by channel:
-// low channels (36-64) are 5.2G, high channels (>=149) are 5.8G in most
-// regions. A non-numeric / "auto" channel can't be distinguished, so it stays
-// "5G".
+// channelToLabel refines a 5g radio into its actual U-NII sub-band using the
+// configured channel. OpenWrt reports both as band "5g" so the channel is the
+// only reliable signal:
+//
+//	36-64    -> 5.2G  (U-NII-1/2A)
+//	100-144  -> 5.5G  (U-NII-2C/3, DFS)
+//	>=149    -> 5.8G  (U-NII-3/4)
+//
+// When the configured channel is "auto" / empty (the common case for auto
+// channel selection), uci can't tell us which sub-band will be used, so we
+// fall back to the radio's *currently active* channel read from
+// `iw dev <ifname> info`. If that also fails we settle on a plain "5G".
 func channelToLabel(section, dev string) string {
 	ch := strings.TrimSpace(uciGet(section + ".channel"))
 	if ch == "" && dev != "" {
@@ -1191,14 +1216,196 @@ func channelToLabel(section, dev string) string {
 			ch = strings.TrimSpace(uciGet(dev + ".channel"))
 		}
 	}
+	// "auto" or missing: try to read the live channel via iw.
+	if ch == "" || strings.EqualFold(ch, "auto") {
+		if live := liveChannelForIface(section); live != 0 {
+			ch = strconv.Itoa(live)
+		}
+	}
 	n, err := strconv.Atoi(ch)
 	if err != nil {
 		return "5G"
 	}
-	if n >= 149 {
+	switch {
+	case n >= 149:
 		return "5.8G"
+	case n >= 100:
+		return "5.5G"
+	default:
+		return "5.2G"
 	}
-	return "5G"
+}
+
+// liveChannelForIface returns the channel a wifi-iface is currently operating
+// on. OpenWrt wifi-iface sections usually have no explicit `ifname`, and several
+// interfaces can share the SAME ssid (e.g. all "TK-WRT"), so matching by ssid
+// is ambiguous. Instead we resolve the runtime interface name for this uci
+// section from `ubus call network.wireless status` (which maps
+// default_radio0 -> phy0-ap0), then query that exact interface's channel.
+// Fallbacks: iwinfo/iw by device name, then by explicit ifname.
+// Returns 0 if the channel can't be determined.
+func liveChannelForIface(section string) int {
+	ifname := strings.TrimSpace(uciGet(section + ".ifname"))
+	dev := strings.TrimSpace(uciGet(section + ".device"))
+
+	// 1) Resolve the interface name from ubus (maps section -> ifname), then
+	//    query that specific interface. This is unambiguous even with equal
+	//    SSIDs across radios.
+	resolved := ubusIfnameForSection(section)
+	if resolved != "" {
+		if ch := parseIwChannel(runCommand("sh", "-c", "iw dev "+shellQuote(resolved)+" info 2>/dev/null")); ch != 0 {
+			return ch
+		}
+		if ch := parseIwinfoChannel(runCommand("sh", "-c", "iwinfo "+shellQuote(resolved)+" info 2>/dev/null")); ch != 0 {
+			return ch
+		}
+	}
+
+	// 2) explicit ifname.
+	if ifname != "" {
+		if ch := parseIwChannel(runCommand("sh", "-c", "iw dev "+shellQuote(ifname)+" info 2>/dev/null")); ch != 0 {
+			return ch
+		}
+	}
+
+	// 3) device name via iwinfo (some firmwares expose the channel here).
+	if dev != "" {
+		if ch := parseIwinfoChannel(runCommand("sh", "-c", "iwinfo "+shellQuote(dev)+" info 2>/dev/null")); ch != 0 {
+			return ch
+		}
+		// 3b) Best-effort: guess the runtime ifname from the device index and
+		//     probe each candidate. Used when ubus has no ifname (e.g. interface
+		//     not fully up yet) but the radio is otherwise configured.
+		for _, cand := range guessIfnamesByDevice(dev) {
+			if ch := parseIwChannel(runCommand("sh", "-c", "iw dev "+shellQuote(cand)+" info 2>/dev/null")); ch != 0 {
+				return ch
+			}
+			if ch := parseIwinfoChannel(runCommand("sh", "-c", "iwinfo "+shellQuote(cand)+" info 2>/dev/null")); ch != 0 {
+				return ch
+			}
+		}
+	}
+	return 0
+}
+
+// ubusIfnameForSection asks ubus for the runtime interface name (e.g. phy0-ap0)
+// belonging to the given wifi-iface uci section (e.g. default_radio0). The ubus
+// status document is a top-level map of radio names ("radio0", "radio1", ...),
+// each containing an "interfaces" array with "section" + "ifname".
+func ubusIfnameForSection(section string) string {
+	out, err := runCommand("sh", "-c", "ubus call network.wireless status 2>/dev/null")
+	if err != nil {
+		return ""
+	}
+	// The ubus document is a top-level map keyed by radio name ("radio0", ...).
+	// Each radio has an "interfaces" array; an interface element carries
+	// "section" (the wifi-iface uci name, e.g. "default_radio0") and the
+	// runtime interface name under either the top-level "ifname" field OR
+	// nested inside "config.ifname" (field location varies by firmware).
+	var data map[string]struct {
+		Interfaces []json.RawMessage `json:"interfaces"`
+	}
+	if err := json.Unmarshal([]byte(out), &data); err != nil {
+		return ""
+	}
+	for _, radio := range data {
+		for _, raw := range radio.Interfaces {
+			var iface struct {
+				Section string `json:"section"`
+				Ifname  string `json:"ifname"`
+				Config  struct {
+					Ifname string `json:"ifname"`
+				} `json:"config"`
+			}
+			if err := json.Unmarshal(raw, &iface); err != nil {
+				continue
+			}
+			if iface.Section != section {
+				continue
+			}
+			if iface.Ifname != "" {
+				return iface.Ifname
+			}
+			if iface.Config.Ifname != "" {
+				return iface.Config.Ifname
+			}
+		}
+	}
+	return ""
+}
+
+// guessIfnamesByDevice returns candidate runtime interface names for a wifi
+// device (e.g. "radio0") when ubus cannot resolve the section->ifname mapping.
+// OpenWrt's default naming is "phy<N>-ap<M>" where N is the radio index parsed
+// from the device name. We try a handful of ap indices as a best-effort fallback.
+func guessIfnamesByDevice(dev string) []string {
+	var idx int
+	// Extract the trailing integer from names like "radio0", "radio1".
+	if i := strings.LastIndexAny(dev, "0123456789"); i >= 0 {
+		if n, err := strconv.Atoi(dev[i:]); err == nil {
+			idx = n
+		}
+	}
+	cands := make([]string, 0, 4)
+	for m := 0; m < 4; m++ {
+		cands = append(cands, fmt.Sprintf("phy%d-ap%d", idx, m))
+	}
+	return cands
+}
+
+// parseIwChannel extracts the channel number from `iw dev <x> info` output.
+func parseIwChannel(out string, err error) int {
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "channel ") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				if n, e := strconv.Atoi(fields[1]); e == nil {
+					return n
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// parseIwinfoChannel extracts the channel from `iwinfo <dev> info` output,
+// which looks like: "Channel: 149 (5.745 GHz)" or "Channel: ... (auto)".
+func parseIwinfoChannel(out string, err error) int {
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Channel:") {
+			fields := strings.Fields(line)
+			// fields: ["Channel:", "149", "(5.745", "GHz)"] or ["Channel:", "auto"]
+			if len(fields) >= 2 {
+				if n, e := strconv.Atoi(fields[1]); e == nil {
+					return n
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// shellQuote wraps a single shell token in single quotes so it can be safely
+// interpolated into a command string.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// truncate shortens s to at most n runes, appending "..." when cut.
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "..."
 }
 
 // collectWifiIfaces returns every wifi-iface as a wifiBand. Band is detected
@@ -2000,7 +2207,15 @@ func parseShareLink(link string) (*parsedNode, error) {
 	case strings.HasPrefix(link, "trojan://"):
 		return parseTrojanLink(link)
 	default:
-		return nil, fmt.Errorf("不支持的链接格式: %s", link)
+		// The link is missing a protocol scheme. Some copy/paste or OCR tools
+		// truncate the leading "vless://<uuid>@<host>:<port>" part, leaving only
+		// "<remarks>?<query>#<remarks>". Detect this and give a clear, actionable
+		// error instead of echoing the whole garbled string back as the message.
+		if strings.Contains(link, "security=") || strings.Contains(link, "encryption=") ||
+			strings.Contains(link, "flow=") || strings.Contains(link, "pbk=") {
+			return nil, fmt.Errorf("链接不完整: 缺少 vless:// 前缀和服务器地址，请复制完整的 vless 分享链接（以 vless:// 开头、包含 @host:port）")
+		}
+		return nil, fmt.Errorf("不支持的链接格式: 链接必须以 ss:// / vmess:// / vless:// / trojan:// 开头")
 	}
 }
 
@@ -2185,18 +2400,154 @@ func parseVmessLink(link string) (*parsedNode, error) {
 	}, nil
 }
 
+// decodeVlessUserinfo decodes a possibly base64/base64url-encoded vless
+// userinfo. Some share links encode "none:<uuid>" (or just the uuid) as
+// base64url to survive copy/paste. On success it returns the UUID part after
+// the first ':'; on any failure it returns the input unchanged (so a plain
+// "uuid" userinfo still works).
+func decodeVlessUserinfo(s string) string {
+	if s == "" {
+		return ""
+	}
+	// A bare UUID is the common case (standard vless://uuid@host form). A UUID
+	// string happens to be valid base64url (dash is url-safe, length is a
+	// multiple of 4), so we must short-circuit it BEFORE attempting base64
+	// decoding — otherwise it would be "decoded" into garbage.
+	if isLikelyUUID(s) {
+		return s
+	}
+	decoded := tryB64Decode(s)
+	if decoded == "" {
+		return s
+	}
+	// "none:uuid" or "uuid" form.
+	if idx := strings.Index(decoded, ":"); idx >= 0 {
+		return decoded[idx+1:]
+	}
+	return decoded
+}
+
+// isLikelyUUID reports whether s looks like a bare UUID (8-4-4-4-12 hex with
+// dashes), used to short-circuit plain-uuid userinfo without decoding.
+func isLikelyUUID(s string) bool {
+	parts := strings.Split(s, "-")
+	if len(parts) != 5 {
+		return false
+	}
+	lens := []int{8, 4, 4, 4, 12}
+	for i, p := range parts {
+		if len(p) != lens[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// decodeVlessAuthority tries to base64/base64url-decode an entire vless
+// authority blob (the text between "vless://" and the first '?'). Some share
+// links encode the whole "auth@host:port" as one blob. On success it returns
+// the decoded "<auth>:<uuid>@<host>:<port>" string and true.
+//
+// To avoid false positives (a plain "uuid@host:port" string can sometimes be
+// base64-decoded into garbage that still contains '@', ':' and '.'), the auth
+// part before '@' must be a real "none:<uuid>" or bare "<uuid>"; otherwise we
+// treat the blob as a plain userinfo (handled by the caller).
+func decodeVlessAuthority(blob string) (string, bool) {
+	if blob == "" {
+		return "", false
+	}
+	decoded := tryB64Decode(blob)
+	at := strings.Index(decoded, "@")
+	if at < 0 {
+		return "", false
+	}
+	auth := decoded[:at]
+	// auth is either "none:<uuid>" or "<uuid>".
+	if strings.HasPrefix(auth, "none:") {
+		auth = auth[len("none:"):]
+	}
+	if !isLikelyUUID(auth) {
+		return "", false
+	}
+	hostPart := decoded[at+1:]
+	// host:port must contain a ':' and a dot (host) to avoid false positives.
+	if !strings.Contains(hostPart, ":") || !strings.Contains(hostPart, ".") {
+		return "", false
+	}
+	return decoded, true
+}
+
+// tryB64Decode attempts base64url then standard base64 decoding. Padding is
+// added as needed because share links often omit the trailing '='.
+func tryB64Decode(s string) string {
+	padded := s
+	for len(padded)%4 != 0 {
+		padded += "="
+	}
+	if d, err := base64.URLEncoding.DecodeString(padded); err == nil {
+		return string(d)
+	}
+	if d, err := base64.StdEncoding.DecodeString(padded); err == nil {
+		return string(d)
+	}
+	return ""
+}
+
 // parseVlessLink parses vless:// links.
 func parseVlessLink(link string) (*parsedNode, error) {
-	u, err := url.Parse(link)
+	// Some share links (e.g. certain v2rayN exports) encode the entire
+	// "userinfo@host:port" as a single base64url blob, so the link has no real
+	// '@'. Others wrap only the userinfo (e.g. base64url("none:"+uuid)), and
+	// the standard form uses a plain "uuid@host". We handle all three:
+	//   1. whole authority is base64 -> decode then split on '@'
+	//   2. plain "uuid@host" -> url.Parse
+	//   3. base64 userinfo + plain "@host" -> decode userinfo, keep host
+	body := strings.TrimPrefix(link, "vless://")
+	userBlob := body
+	if i := strings.Index(body, "?"); i >= 0 {
+		userBlob = body[:i]
+	}
+
+	uuid, hostPort := "", ""
+	if dec, ok := decodeVlessAuthority(userBlob); ok {
+		// dec is "<auth>:<uuid>@<host>:<port>"
+		auth, rest, _ := strings.Cut(dec, "@")
+		hostPort = rest
+		if idx := strings.Index(auth, ":"); idx >= 0 {
+			uuid = auth[idx+1:]
+		} else {
+			uuid = auth
+		}
+	} else if userPart, hostPart, found := strings.Cut(body, "@"); found {
+		uuid = decodeVlessUserinfo(userPart)
+		// Strip any query/fragment that may have been captured past the host:port.
+		if i := strings.Index(hostPart, "?"); i >= 0 {
+			hostPort = hostPart[:i]
+		} else {
+			hostPort = hostPart
+		}
+	}
+
+	// Build a clean vless URL so url.Parse reliably extracts host/port and the
+	// query string. hostPort already excludes any query fragment, so we must
+	// re-append the original query (remarks/tls/pbk/sid/fp/...) which would
+	// otherwise be lost when the authority was base64-wrapped.
+	cleanLink := "vless://" + url.QueryEscape(uuid) + "@" + hostPort
+	if qi := strings.Index(body, "?"); qi >= 0 {
+		cleanLink += body[qi:]
+	}
+	u, err := url.Parse(cleanLink)
 	if err != nil {
 		return nil, fmt.Errorf("解析vless链接失败: %v", err)
 	}
 
-	uuid := ""
-	if u.User != nil {
+	if uuid == "" && u.User != nil {
 		uuid = u.User.Username()
 	}
 	remarks := u.Fragment
+	if remarks == "" {
+		remarks = u.Query().Get("remarks")
+	}
 	if remarks == "" {
 		remarks = u.Hostname()
 	}
@@ -2212,16 +2563,34 @@ func parseVlessLink(link string) (*parsedNode, error) {
 		net = "raw"
 	}
 	security := q.Get("security")
+	// v2rayN-style vless links use a bare "tls=1" query flag (and "security"
+	// may be absent). Treat both "security=tls/reality" and "tls=1" as TLS on.
+	tlsOn := security == "tls" || security == "reality" || q.Get("tls") == "1"
+
+	// Shadowrocket (小火箭) reality nodes set tls=1 with pbk/sid but no
+	// security=reality. Treat the presence of a reality public key as TLS on.
+	if q.Get("pbk") != "" {
+		tlsOn = true
+	}
 
 	extra := map[string]string{
 		"uuid":      uuid,
 		"transport": net,
 	}
-	if security == "tls" || security == "reality" {
+	if tlsOn {
 		extra["tls"] = "1"
 	}
 	if flow := q.Get("flow"); flow != "" {
 		extra["flow"] = flow
+	} else {
+		// Shadowrocket uses a legacy xtls flag instead of a flow param:
+		//   xtls=2 -> xtls-rprx-vision (reality vision), xtls=1 -> xtls-rprx-origin
+		switch q.Get("xtls") {
+		case "2":
+			extra["flow"] = "xtls-rprx-vision"
+		case "1":
+			extra["flow"] = "xtls-rprx-origin"
+		}
 	}
 	// vless encryption (e.g. "none")
 	if enc := q.Get("encryption"); enc != "" && enc != "none" {
@@ -2231,6 +2600,10 @@ func parseVlessLink(link string) (*parsedNode, error) {
 		extra["alpn"] = alpn
 	}
 	sni := q.Get("sni")
+	// v2rayN reality nodes put the server name in "peer" instead of "sni".
+	if sni == "" {
+		sni = q.Get("peer")
+	}
 	if h := q.Get("host"); h != "" {
 		extra["ws_host"] = h
 	} else if net == "ws" && sni != "" {
@@ -2249,6 +2622,10 @@ func parseVlessLink(link string) (*parsedNode, error) {
 	}
 	if pbk := q.Get("pbk"); pbk != "" {
 		extra["reality_publicKey"] = pbk
+		// luci-app-passwall needs the explicit "reality" switch (not just the
+		// public key) to actually enable reality; it also implies TLS.
+		extra["reality"] = "1"
+		extra["tls"] = "1"
 	}
 	if sid := q.Get("sid"); sid != "" {
 		extra["reality_shortId"] = sid
@@ -2333,6 +2710,37 @@ func uciCommit(config string) {
 }
 
 // findNodeByRemarks finds a passwall node section ID by its remarks.
+// findNodeByID returns the uci section id if it exists as a "nodes" section.
+// This is the preferred lookup because remarks are NOT unique (two imported
+// nodes can share the same remarks), whereas the uci section id is unique.
+func findNodeByID(id string) string {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ""
+	}
+	output, err := runCommand("uci", "-q", "show", "passwall")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "passwall.") {
+			continue
+		}
+		rest := strings.TrimPrefix(line, "passwall.")
+		eqIdx := strings.Index(rest, "=")
+		if eqIdx < 0 {
+			continue
+		}
+		secID := rest[:eqIdx]
+		val := rest[eqIdx+1:]
+		if secID == id && val == "nodes" {
+			return secID
+		}
+	}
+	return ""
+}
+
 // Parses everything from a single `uci show` output to avoid format mismatch issues.
 func findNodeByRemarks(remarks string) string {
 	output, err := runCommand("uci", "-q", "show", "passwall")
@@ -2423,7 +2831,11 @@ func readSection(secID string) map[string]string {
 // same field names parseShareLink writes on import) to avoid serving any
 // stale/corrupted cached value.
 func nodeExport(remarks string) string {
-	secID := findNodeByRemarks(remarks)
+	secID := findNodeByID(remarks)
+	if secID == "" {
+		// Fallback: treat argument as remarks (legacy).
+		secID = findNodeByRemarks(remarks)
+	}
 	if secID == "" {
 		return ""
 	}

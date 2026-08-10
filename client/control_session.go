@@ -135,9 +135,11 @@ func (d *controlSessionDialer) buildLoginMsg(previousRunID string) (*msg.Login, 
 	return loginMsg, nil
 }
 
-// publicIP returns the client's public IP address (the IP assigned by the ISP)
+// publicIP returns the client's public IPv4 address (the IP assigned by the ISP)
 // by querying external services. This is useful when frps is behind a reverse
-// proxy and cannot see the client's real public IP.
+// proxy and cannot see the client's real public IP. Only IPv4 addresses are
+// accepted, so enabling IPv6 on the host will not make the client report an
+// IPv6 address.
 //
 // To avoid passwall / transparent proxy hijacking, bypass-friendly HTTP services
 // are tried first. These domains are typically configured as direct-routed in
@@ -204,10 +206,17 @@ func tryGetIP(client *http.Client, url string, parse func(string) string) string
 	if parse != nil {
 		text = parse(text)
 	}
-	if text != "" && net.ParseIP(text) != nil {
+	if text != "" && isIPv4(text) {
 		return text
 	}
 	return ""
+}
+
+// isIPv4 reports whether s is a valid IPv4 address (IPv6 is rejected so the
+// client always reports an IPv4 address as its outbound ClientAddr).
+func isIPv4(s string) bool {
+	ip := net.ParseIP(s)
+	return ip != nil && ip.To4() != nil
 }
 
 // extractFirstIP returns the first valid IPv4 found in a mixed-content response
@@ -215,7 +224,7 @@ func tryGetIP(client *http.Client, url string, parse func(string) string) string
 func extractFirstIP(text string) string {
 	for _, field := range strings.Fields(strings.NewReplacer("：", ": ", "：", ": ").Replace(text)) {
 		field = strings.TrimRight(field, ",，;:：")
-		if ip := strings.TrimSpace(field); net.ParseIP(ip) != nil {
+		if ip := strings.TrimSpace(field); isIPv4(ip) {
 			return ip
 		}
 	}
@@ -235,7 +244,7 @@ func extractCipCCIP(text string) string {
 		line = strings.TrimPrefix(line, "IP")
 		line = strings.TrimLeft(line, " \t:：*")
 		line = strings.TrimSpace(line)
-		if ip, _, _ := strings.Cut(line, " "); net.ParseIP(ip) != nil {
+		if ip, _, _ := strings.Cut(line, " "); isIPv4(ip) {
 			return ip
 		}
 	}
