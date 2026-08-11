@@ -46,15 +46,15 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 		}
 		err = w.limiter.WaitN(context.Background(), end)
 		if err != nil {
-			return
+			return n, err
 		}
 
 		nn, err = w.w.Write(p[:end])
 		n += nn
 		if err != nil {
-			return
+			return n, err
 		}
 		p = p[end:]
 	}
-	return
+	return n, err
 }

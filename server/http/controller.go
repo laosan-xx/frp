@@ -266,7 +266,7 @@ func (c *Controller) getProxyStatsByType(proxyType string) (proxyInfos []*model.
 		proxyInfo.LastCloseTime = ps.LastCloseTime
 		proxyInfos = append(proxyInfos, proxyInfo)
 	}
-	return
+	return proxyInfos
 }
 
 func (c *Controller) getProxyStatsByTypeAndName(proxyType string, proxyName string) (proxyInfo model.GetProxyStatsResp, code int, msg string) {
@@ -292,7 +292,7 @@ func (c *Controller) getProxyStatsByTypeAndName(proxyType string, proxyName stri
 		code = 200
 	}
 
-	return
+	return proxyInfo, code, msg
 }
 
 func buildClientInfoResp(info registry.ClientInfo) model.ClientInfoResp {

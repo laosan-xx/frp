@@ -49,26 +49,26 @@ func RenderContent(in []byte) (out []byte, err error) {
 	tmpl, errRet := template.New("frp").Parse(string(in))
 	if errRet != nil {
 		err = errRet
-		return
+		return out, err
 	}
 
 	buffer := bytes.NewBufferString("")
 	v := GetValues()
 	err = tmpl.Execute(buffer, v)
 	if err != nil {
-		return
+		return out, err
 	}
 	out = buffer.Bytes()
-	return
+	return out, err
 }
 
 func GetRenderedConfFromFile(path string) (out []byte, err error) {
 	var b []byte
 	b, err = os.ReadFile(path)
 	if err != nil {
-		return
+		return out, err
 	}
 
 	out, err = RenderContent(b)
-	return
+	return out, err
 }

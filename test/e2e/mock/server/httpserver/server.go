@@ -96,7 +96,7 @@ func (s *Server) Close() error {
 
 func (s *Server) initListener() (err error) {
 	s.l, err = net.Listen("tcp", net.JoinHostPort(s.bindAddr, strconv.Itoa(s.bindPort)))
-	return
+	return err
 }
 
 func (s *Server) BindAddr() string {

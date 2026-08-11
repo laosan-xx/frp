@@ -42,7 +42,7 @@ func NewSTCPProxy(baseProxy *BaseProxy) Proxy {
 
 func (pxy *STCPProxy) Run() (remoteAddr string, err error) {
 	err = pxy.startVisitorListener(pxy.cfg.Secretkey, pxy.cfg.AllowUsers, "stcp")
-	return
+	return remoteAddr, err
 }
 
 func (pxy *STCPProxy) Close() {

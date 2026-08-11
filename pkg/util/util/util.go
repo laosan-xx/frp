@@ -40,7 +40,7 @@ func RandIDWithLen(idLen int) (id string, err error) {
 	b := make([]byte, idLen/2+1)
 	_, err = rand.Read(b)
 	if err != nil {
-		return
+		return id, err
 	}
 
 	id = fmt.Sprintf("%x", b)
@@ -61,7 +61,7 @@ func CanonicalAddr(host string, port int) (addr string) {
 	} else {
 		addr = net.JoinHostPort(host, strconv.Itoa(port))
 	}
-	return
+	return addr
 }
 
 func ParseRangeNumbers(rangeStr string) (numbers []int64, err error) {
@@ -80,7 +80,7 @@ func ParseRangeNumbers(rangeStr string) (numbers []int64, err error) {
 			singleNum, errRet := strconv.ParseInt(strings.TrimSpace(numArray[0]), 10, 64)
 			if errRet != nil {
 				err = fmt.Errorf("range number is invalid, %v", errRet)
-				return
+				return numbers, err
 			}
 			numbers = append(numbers, singleNum)
 		case 2:
@@ -88,26 +88,26 @@ func ParseRangeNumbers(rangeStr string) (numbers []int64, err error) {
 			minValue, errRet := strconv.ParseInt(strings.TrimSpace(numArray[0]), 10, 64)
 			if errRet != nil {
 				err = fmt.Errorf("range number is invalid, %v", errRet)
-				return
+				return numbers, err
 			}
 			maxValue, errRet := strconv.ParseInt(strings.TrimSpace(numArray[1]), 10, 64)
 			if errRet != nil {
 				err = fmt.Errorf("range number is invalid, %v", errRet)
-				return
+				return numbers, err
 			}
 			if maxValue < minValue {
 				err = fmt.Errorf("range number is invalid")
-				return
+				return numbers, err
 			}
 			for i := minValue; i <= maxValue; i++ {
 				numbers = append(numbers, i)
 			}
 		default:
 			err = fmt.Errorf("range number is invalid")
-			return
+			return numbers, err
 		}
 	}
-	return
+	return numbers, err
 }
 
 func GenerateResponseErrorString(summary string, err error, detailed bool) string {

@@ -101,7 +101,7 @@ func (pm *Manager) Acquire(name string, port int) (realPort int, err error) {
 			if pm.isPortAvailable(ctx.Port) {
 				realPort = ctx.Port
 				pm.markPortAcquiredLocked(name, realPort, portCtx)
-				return
+				return realPort, err
 			}
 		}
 	}
@@ -141,7 +141,7 @@ func (pm *Manager) Acquire(name string, port int) (realPort int, err error) {
 			}
 		}
 	}
-	return
+	return realPort, err
 }
 
 // markPortAcquiredLocked records a successful acquisition. pm.mu must be held.

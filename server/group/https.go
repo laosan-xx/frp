@@ -46,7 +46,7 @@ func (ctl *HTTPSGroupController) Listen(
 		if err == errGroupStale {
 			continue
 		}
-		return
+		return l, err
 	}
 }
 
@@ -98,5 +98,5 @@ func (g *HTTPSGroup) Listen(
 		}
 		ln = g.newListener(g.lns[0].Addr())
 	}
-	return
+	return ln, err
 }

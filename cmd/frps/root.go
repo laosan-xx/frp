@@ -122,5 +122,5 @@ func runServer(cfg *v1.ServerConfig) (err error) {
 	}
 	log.Infof("frps started successfully")
 	svr.Run(context.Background())
-	return
+	return err
 }

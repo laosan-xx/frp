@@ -68,7 +68,7 @@ func (pxy *HTTPSProxy) Run() (remoteAddr string, err error) {
 
 	pxy.startCommonTCPListenersHandler()
 	remoteAddr = strings.Join(addrs, ",")
-	return
+	return remoteAddr, err
 }
 
 func (pxy *HTTPSProxy) Close() {

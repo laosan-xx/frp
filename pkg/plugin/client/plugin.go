@@ -50,7 +50,7 @@ func Create(pluginName string, pluginCtx PluginContext, options v1.ClientPluginO
 	} else {
 		err = fmt.Errorf("plugin [%s] is not registered", pluginName)
 	}
-	return
+	return p, err
 }
 
 type ConnectionInfo struct {

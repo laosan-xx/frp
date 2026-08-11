@@ -118,5 +118,5 @@ func (impl *transporterImpl) registerMsgChan(recvCh chan msg.Message, laneKey st
 		delete(byLaneKey, laneKey)
 		impl.mu.Unlock()
 	}
-	return
+	return unregister
 }

@@ -53,7 +53,7 @@ func (pxy *XTCPProxy) Run() (remoteAddr string, err error) {
 
 	if pxy.rc.NatHoleController == nil {
 		err = fmt.Errorf("xtcp is not supported in frps")
-		return
+		return remoteAddr, err
 	}
 	allowUsers := pxy.cfg.AllowUsers
 	// if allowUsers is empty, only allow same user from proxy
@@ -82,7 +82,7 @@ func (pxy *XTCPProxy) Run() (remoteAddr string, err error) {
 			}
 		}
 	}()
-	return
+	return remoteAddr, err
 }
 
 func writeNatHoleSid(workConn net.Conn, wireProtocol string, sid string) error {

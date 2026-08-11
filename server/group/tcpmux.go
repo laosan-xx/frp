@@ -56,7 +56,7 @@ func (tmgc *TCPMuxGroupCtl) Listen(
 			if err == errGroupStale {
 				continue
 			}
-			return
+			return l, err
 		default:
 			return nil, fmt.Errorf("unknown multiplexer [%s]", multiplexer)
 		}
@@ -125,5 +125,5 @@ func (tmg *TCPMuxGroup) HTTPConnectListen(
 		}
 		ln = tmg.newListener(tmg.lns[0].Addr())
 	}
-	return
+	return ln, err
 }

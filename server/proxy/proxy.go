@@ -150,7 +150,7 @@ func (pxy *BaseProxy) GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn,
 		var pxyWorkConn *WorkConn
 		if pxyWorkConn, err = pxy.getWorkConnFn(); err != nil {
 			xl.Warnf("failed to get work connection: %v", err)
-			return
+			return workConn, err
 		}
 		xl.Debugf("get a new work connection: [%s]", pxyWorkConn.conn.RemoteAddr().String())
 		xl.Spawn().AppendPrefix(pxy.GetName())
@@ -192,9 +192,9 @@ func (pxy *BaseProxy) GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn,
 
 	if err != nil {
 		xl.Errorf("try to get work connection failed in the end")
-		return
+		return workConn, err
 	}
-	return
+	return workConn, err
 }
 
 // startVisitorListener sets up a VisitorManager listener for visitor-based proxies (STCP, SUDP).
@@ -453,7 +453,7 @@ func joinSUDPMessageBridge(
 			errs = append(errs, err)
 		}
 	}
-	return
+	return inCount, outCount, errs
 }
 
 func bridgeSUDPProxyToVisitor(from msg.ReadWriter, to msg.ReadWriter, count *int64, xl *xlog.Logger) error {
@@ -608,5 +608,5 @@ func (pm *Manager) GetByName(name string) (pxy Proxy, ok bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	pxy, ok = pm.pxys[name]
-	return
+	return pxy, ok
 }

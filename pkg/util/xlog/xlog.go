@@ -47,7 +47,7 @@ func (l *Logger) ResetPrefixes() (old []LogPrefix) {
 	old = l.prefixes
 	l.prefixes = make([]LogPrefix, 0)
 	l.prefixString = ""
-	return
+	return old
 }
 
 func (l *Logger) AppendPrefix(prefix string) *Logger {

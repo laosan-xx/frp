@@ -141,7 +141,7 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 
 // nodeInfo represents a single passwall node for JSON output.
 type nodeInfo struct {
-	ID      string `json:"id"`      // unique uci section id (e.g. "nodes", "nodes[0]", "cfg0x...")
+	ID      string `json:"id"` // unique uci section id (e.g. "nodes", "nodes[0]", "cfg0x...")
 	Remarks string `json:"remarks"`
 	Type    string `json:"type"`
 	Address string `json:"address"`
@@ -1401,15 +1401,6 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// truncate shortens s to at most n runes, appending "..." when cut.
-func truncate(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n]) + "..."
-}
-
 // collectWifiIfaces returns every wifi-iface as a wifiBand. Band is detected
 // from the iface's own `band` option, otherwise from the referenced
 // wifi-device, otherwise by declaration order (2.4G, 5G, 5.8G, ...).
@@ -2480,9 +2471,7 @@ func decodeVlessAuthority(blob string) (string, bool) {
 	}
 	auth := decoded[:at]
 	// auth is either "none:<uuid>" or "<uuid>".
-	if strings.HasPrefix(auth, "none:") {
-		auth = auth[len("none:"):]
-	}
+	auth = strings.TrimPrefix(auth, "none:")
 	if !isLikelyUUID(auth) {
 		return "", false
 	}
@@ -2949,7 +2938,7 @@ func transportAndHostPath(opts map[string]string) (net, host, path string) {
 		// versions; try both.
 		path = optOr(opts, "grpc_service_name", optOr(opts, "serviceName", ""))
 	}
-	return
+	return net, host, path
 }
 
 // securityInfo determines whether the node uses reality/tls/none and returns

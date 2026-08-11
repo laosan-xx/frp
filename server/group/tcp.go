@@ -48,7 +48,7 @@ func (tgc *TCPGroupCtl) Listen(proxyName string, group string, groupKey string,
 		if err == errGroupStale {
 			continue
 		}
-		return
+		return l, realPort, err
 	}
 }
 
@@ -82,13 +82,13 @@ func (tg *TCPGroup) Listen(proxyName string, group string, groupKey string, addr
 		// the first listener, listen on the real address
 		realPort, err = tg.ctl.portManager.Acquire(proxyName, port)
 		if err != nil {
-			return
+			return ln, realPort, err
 		}
 		tcpLn, errRet := net.Listen("tcp", net.JoinHostPort(addr, strconv.Itoa(realPort)))
 		if errRet != nil {
 			tg.ctl.portManager.Release(realPort)
 			err = errRet
-			return
+			return ln, realPort, err
 		}
 
 		tg.addr = addr
@@ -106,18 +106,18 @@ func (tg *TCPGroup) Listen(proxyName string, group string, groupKey string, addr
 		// address and port in the same group must be equal
 		if tg.group != group || tg.addr != addr {
 			err = ErrGroupParamsInvalid
-			return
+			return ln, realPort, err
 		}
 		if tg.port != port {
 			err = ErrGroupDifferentPort
-			return
+			return ln, realPort, err
 		}
 		if tg.groupKey != groupKey {
 			err = ErrGroupAuthFailed
-			return
+			return ln, realPort, err
 		}
 		ln = tg.newListener(tg.lns[0].Addr())
 		realPort = tg.realPort
 	}
-	return
+	return ln, realPort, err
 }

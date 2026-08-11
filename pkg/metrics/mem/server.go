@@ -269,7 +269,7 @@ func (m *serverMetrics) GetProxiesByTypeAndName(proxyType string, proxyName stri
 	if ok && proxyStats.ProxyType == proxyType {
 		res = toProxyStats(proxyName, proxyStats)
 	}
-	return
+	return res
 }
 
 func (m *serverMetrics) GetProxyByName(proxyName string) (res *ProxyStats) {
@@ -280,7 +280,7 @@ func (m *serverMetrics) GetProxyByName(proxyName string) (res *ProxyStats) {
 	if ok {
 		res = toProxyStats(proxyName, proxyStats)
 	}
-	return
+	return res
 }
 
 func (m *serverMetrics) GetProxyTraffic(name string) (res *ProxyTrafficInfo) {
@@ -295,5 +295,5 @@ func (m *serverMetrics) GetProxyTraffic(name string) (res *ProxyTrafficInfo) {
 		res.TrafficIn = proxyStats.TrafficIn.GetLastDaysCount(ReserveDays)
 		res.TrafficOut = proxyStats.TrafficOut.GetLastDaysCount(ReserveDays)
 	}
-	return
+	return res
 }

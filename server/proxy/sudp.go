@@ -42,7 +42,7 @@ func NewSUDPProxy(baseProxy *BaseProxy) Proxy {
 
 func (pxy *SUDPProxy) Run() (remoteAddr string, err error) {
 	err = pxy.startVisitorListener(pxy.cfg.Secretkey, pxy.cfg.AllowUsers, "sudp")
-	return
+	return remoteAddr, err
 }
 
 func (pxy *SUDPProxy) Close() {

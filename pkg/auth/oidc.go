@@ -234,7 +234,7 @@ func (auth *OidcTokenSourceAuthProvider) generateAccessToken() (accessToken stri
 	if err != nil {
 		return "", fmt.Errorf("couldn't acquire OIDC token for login: %v", err)
 	}
-	return
+	return accessToken, err
 }
 
 func (auth *OidcTokenSourceAuthProvider) SetLogin(loginMsg *msg.Login) (err error) {

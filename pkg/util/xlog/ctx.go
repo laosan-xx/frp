@@ -30,7 +30,7 @@ func NewContext(ctx context.Context, xl *Logger) context.Context {
 
 func FromContext(ctx context.Context) (xl *Logger, ok bool) {
 	xl, ok = ctx.Value(xlogKey).(*Logger)
-	return
+	return xl, ok
 }
 
 func FromContextSafe(ctx context.Context) *Logger {
