@@ -2556,6 +2556,20 @@ func parseVlessLink(link string) (*parsedNode, error) {
 	q := u.Query()
 	net := q.Get("type")
 	if net == "" {
+		// Shadowrocket (小火箭) and some apps put the transport in "obfs"
+		// instead of "type".
+		net = q.Get("obfs")
+	}
+	if net == "" {
+		net = "tcp"
+	}
+	// Shadowrocket obfs values: grpc / websocket(ws) / none / quic(...)
+	switch net {
+	case "websocket", "ws":
+		net = "ws"
+	case "h2", "http":
+		net = "h2"
+	case "none", "":
 		net = "tcp"
 	}
 	// Xray uses "raw" instead of "tcp"
@@ -2611,12 +2625,22 @@ func parseVlessLink(link string) (*parsedNode, error) {
 		extra["ws_host"] = sni
 	}
 	if p := q.Get("path"); p != "" {
-		extra["ws_path"] = p
+		// Shadowrocket stores the gRPC service name in "path"; v2rayN uses
+		// "serviceName". Only treat it as ws_path for ws transport.
+		if net == "grpc" {
+			extra["grpc_serviceName"] = p
+		} else {
+			extra["ws_path"] = p
+		}
 	}
 	if sni != "" {
 		extra["tls_serverName"] = sni
 	}
-	if fp := q.Get("fp"); fp != "" {
+	fp := q.Get("fp")
+	if fp == "" {
+		fp = q.Get("fingerprint")
+	}
+	if fp != "" {
 		extra["utls"] = "1"
 		extra["fingerprint"] = fp
 	}
@@ -2629,6 +2653,25 @@ func parseVlessLink(link string) (*parsedNode, error) {
 	}
 	if sid := q.Get("sid"); sid != "" {
 		extra["reality_shortId"] = sid
+	}
+	// spiderX / shortId extension (some share formats use "spx" instead of
+	// "sid"; v2rayN reality nodes may carry both). Passwall stores it as
+	// reality_spiderX.
+	if spx := q.Get("spx"); spx != "" {
+		extra["reality_spiderX"] = spx
+	}
+
+	// gRPC service name (only meaningful when transport is grpc). Passwall
+	// expects grpc_service_name (serviceName is accepted as a fallback by
+	// transportAndHostPath).
+	if net == "grpc" {
+		if svc := q.Get("serviceName"); svc != "" {
+			extra["grpc_serviceName"] = svc
+		}
+		// mode=gun is the standard gRPC multi-mode flag in share links.
+		if mode := q.Get("mode"); mode != "" {
+			extra["grpc_mode"] = mode
+		}
 	}
 
 	return &parsedNode{
