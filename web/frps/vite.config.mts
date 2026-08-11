@@ -51,6 +51,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: '0.0.0.0',
+      port: 5677,
       allowedHosts: process.env.ALLOWED_HOSTS
         ? process.env.ALLOWED_HOSTS.split(',')
         : [],

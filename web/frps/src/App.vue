@@ -413,7 +413,7 @@ html.dark .theme-switch {
   height: 36px;
   border: none;
   border-radius: 6px;
-  background: transparent;
+  background: #f0f0f0;
   cursor: pointer;
   padding: 0;
   transition: background 0.15s ease;
@@ -567,6 +567,10 @@ html.dark .el-switch {
 @media (max-width: 767px) {
   .header-content {
     padding: 0 16px;
+  }
+
+  .brand-section {
+    gap: 8px;
   }
 
   .brand-section .divider,

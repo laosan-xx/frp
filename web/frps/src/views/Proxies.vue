@@ -76,6 +76,8 @@
       :title="$t('proxies.clearOfflineTitle')"
       :message="$t('proxies.clearOfflineMessage')"
       :confirm-text="$t('proxies.clearOfflineConfirm')"
+      :cancel-text="$t('common.cancel')"
+      :is-mobile="isMobile"
       danger
       @confirm="handleClearConfirm"
     />

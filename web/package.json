@@ -1,12 +1,17 @@
 {
   "name": "frp-web",
   "private": true,
-  "workspaces": ["shared", "frpc", "frps"],
+  "workspaces": [
+    "shared",
+    "frpc",
+    "frps"
+  ],
   "scripts": {
     "test:unit": "vitest run",
     "test:unit:watch": "vitest"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "@vue/test-utils": "2.4.11",
     "jsdom": "29.1.1",
     "vitest": "4.1.10",

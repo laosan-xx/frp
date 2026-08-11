@@ -93,6 +93,8 @@ func (e *builtinCommandExecutor) Execute(command, payload string) (result, outpu
 		return e.cmdCancelDownload()
 	case "run_sysupgrade":
 		return e.cmdRunSysupgrade(payload)
+	case "reboot":
+		return e.cmdReboot()
 	default:
 		return "error", fmt.Sprintf("未知命令: %s", command)
 	}
@@ -2128,6 +2130,21 @@ func (e *builtinCommandExecutor) cmdRunSysupgrade(payload string) (string, strin
 	result := map[string]string{"status": "upgrading", "message": "系统更新中，路由器即将重启..."}
 	jsonBytes, _ := json.Marshal(result)
 	return "ok", string(jsonBytes)
+}
+
+// cmdReboot reboots the OpenWrt device. Like frpc restart, the reboot tears
+// down the control connection, so we return success first and trigger the
+// reboot asynchronously after the response has had time to be sent.
+func (e *builtinCommandExecutor) cmdReboot() (string, string) {
+	log.Infof("reboot: device reboot requested from frps dashboard")
+	go func() {
+		// Give the response time to reach frps before the connection drops.
+		time.Sleep(300 * time.Millisecond)
+		if _, err := runCommand("reboot"); err != nil {
+			log.Warnf("reboot failed: %v", err)
+		}
+	}()
+	return "ok", "设备即将重启..."
 }
 
 // ============================================================

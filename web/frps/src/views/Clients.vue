@@ -14,7 +14,16 @@
         </div>
         <div class="header-actions">
           <div class="actions-section">
-            <ActionButton variant="outline" size="small" danger @click="showClearDialog = true">
+            <ActionButton variant="outline" size="small" @click="fetchData()">
+              {{ $t('common.refresh') }}
+            </ActionButton>
+            <ActionButton
+              v-if="statusFilter === 'offline'"
+              variant="outline"
+              size="small"
+              danger
+              @click="showClearDialog = true"
+            >
               {{ $t('clients.clearOffline') }}
             </ActionButton>
           </div>
@@ -80,6 +89,8 @@
       :title="$t('clients.clearOfflineTitle')"
       :message="$t('clients.clearOfflineMessage')"
       :confirm-text="$t('clients.clearOfflineConfirm')"
+      :cancel-text="$t('common.cancel')"
+      :is-mobile="isMobile"
       danger
       @confirm="handleClearConfirm"
     />
@@ -104,9 +115,7 @@ const { isMobile } = useResponsive()
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const searchText = ref('')
-const statusFilter = ref<'all' | 'online' | 'offline'>(
-  isMobile.value ? 'online' : 'all',
-)
+const statusFilter = ref<'online' | 'offline'>('online')
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -117,12 +126,7 @@ let searchDebounceTimer: number | null = null
 let requestSeq = 0
 
 const statusTabs = computed(() => {
-  const allTabs = [
-    {
-      value: 'all' as const,
-      label: t('clients.all'),
-      count: statusFilter.value === 'all' ? total.value : null,
-    },
+  return [
     {
       value: 'online' as const,
       label: t('common.online'),
@@ -134,7 +138,6 @@ const statusTabs = computed(() => {
       count: statusFilter.value === 'offline' ? total.value : null,
     },
   ]
-  return isMobile.value ? allTabs.slice(1) : allTabs
 })
 
 const fetchData = async (silent = false) => {

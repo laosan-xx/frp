@@ -8,7 +8,6 @@
     :close-on-press-escape="closeOnPressEscape"
     :append-to-body="appendToBody"
     :top="dialogTop"
-    :fullscreen="isMobile"
     class="base-dialog"
     :class="{ 'mobile-dialog': isMobile }"
   >
@@ -55,12 +54,12 @@ const visible = computed({
 })
 
 const dialogWidth = computed(() => {
-  if (props.isMobile) return '100%'
+  if (props.isMobile) return 'min(420px, 92vw)'
   return props.width
 })
 
 const dialogTop = computed(() => {
-  if (props.isMobile) return '0'
+  if (props.isMobile) return '15vh'
   return props.top
 })
 </script>
@@ -119,10 +118,9 @@ const dialogTop = computed(() => {
   }
 
   &.mobile-dialog {
-    border-radius: 0;
-    margin: 0;
-    height: 100%;
-    max-height: 100dvh;
+    border-radius: 16px;
+    max-width: 92vw;
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
 

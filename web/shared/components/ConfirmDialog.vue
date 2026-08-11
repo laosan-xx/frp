@@ -2,7 +2,7 @@
   <BaseDialog
     v-model="visible"
     :title="title"
-    width="400px"
+    :width="isMobile ? '92vw' : '400px'"
     :close-on-click-modal="false"
     :append-to-body="true"
     :is-mobile="isMobile"
@@ -27,8 +27,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useBreakpoints } from '@vueuse/core'
 import BaseDialog from './BaseDialog.vue'
 import ActionButton from '@shared/components/ActionButton.vue'
+
+const breakpoints = useBreakpoints({ mobile: 0, desktop: 768 })
 
 const props = withDefaults(
   defineProps<{
@@ -46,7 +49,6 @@ const props = withDefaults(
     cancelText: 'Cancel',
     danger: false,
     loading: false,
-    isMobile: false,
   },
 )
 
@@ -60,6 +62,11 @@ const visible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
+
+// 外部未显式传入 isMobile 时，自动按视口宽度判定，避免移动端固定 400px 超宽
+const isMobile = computed(
+  () => props.isMobile ?? breakpoints.smaller('desktop').value,
+)
 
 const handleConfirm = () => {
   emit('confirm')

@@ -235,11 +235,11 @@
                       </el-button>
                       <el-button
                         size="small"
-                        type="info"
-                        :loading="copyingNode === node.id"
-                        @click="copyNode(node.id)"
+                        type="success"
+                        :loading="sharingNode === node.id"
+                        @click="shareNode(node.id)"
                       >
-                        <span v-if="copyingNode !== node.id">{{ $t('clientDetail.copyNode') }}</span>
+                        <span v-if="sharingNode !== node.id">{{ $t('clientDetail.shareNode') }}</span>
                       </el-button>
                       <!-- Passwall running: current node shows 停用, others show 切换 -->
                       <template v-if="passwallEnabled">
@@ -293,6 +293,30 @@
 
                   </div>
                 </div>
+
+                <!-- 分享二维码弹窗 -->
+                <el-dialog
+                  v-model="shareDialogVisible"
+                  :title="$t('clientDetail.shareQrTitle')"
+                  width="fit-content"
+                  align-center
+                  append-to-body
+                  :close-on-click-modal="false"
+                  class="share-qr-dialog"
+                >
+                  <div class="share-qr-wrap">
+                    <img v-if="shareQrDataUrl" :src="shareQrDataUrl" alt="QR" class="share-qr-img" />
+                    <el-button
+                      v-if="shareLink"
+                      size="default"
+                      type="primary"
+                      class="share-qr-copy"
+                      @click="copyShareLink"
+                    >
+                      {{ $t('clientDetail.copyLink') }}
+                    </el-button>
+                  </div>
+                </el-dialog>
 
                 <!-- Add node section -->
                 <div class="passwall-add-section">
@@ -473,6 +497,18 @@
                       :inactive-text="$t('clientDetail.sysOff')"
                       inline-prompt
                       @change="(v: any) => onToggleBand(b.key, v)"
+                    />
+                  </div>
+                  <div class="system-toggle-item">
+                    <span class="system-toggle-label">{{ $t('clientDetail.sysReboot') }}</span>
+                    <el-button
+                      class="system-reboot-btn"
+                      type="danger"
+                      circle
+                      size="small"
+                      :loading="rebooting"
+                      :icon="SwitchButton"
+                      @click="rebootSystem"
                     />
                   </div>
                 </div>
@@ -729,8 +765,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElPagination, ElTag, ElButton, ElProgress } from 'element-plus'
-import { ArrowLeft, Loading, Search, EditPen, Connection, User, Setting, Iphone, Link, Lock, Download } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox, ElPagination, ElTag, ElButton, ElProgress } from 'element-plus'
+import { ArrowLeft, Loading, Search, EditPen, Connection, User, Setting, Iphone, Link, Lock, Download, SwitchButton } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
@@ -748,6 +784,7 @@ import {
   SUDPProxy,
 } from '../utils/proxy'
 import { getServerInfo } from '../api/server'
+import QRCode from 'qrcode'
 import { getCachedCurrentNode, setCachedCurrentNode, type CachedCurrentNode } from './currentNodeCache'
 import ProxyCard from '../components/ProxyCard.vue'
 import type { ProxyStatsInfo } from '../types/proxy'
@@ -800,6 +837,9 @@ const payloadInput = ref('')
 const commandSending = ref(false)
 const commandResp = ref<ClientCommandResp | null>(null)
 
+// 系统重启
+const rebooting = ref(false)
+
 // Node list state (for passwall)
 const nodeList = ref<NodeItem[]>([])
 const nodeListLoading = ref(false)
@@ -814,7 +854,11 @@ const passwallNodeTestState = ref<Record<string, { loading: boolean; code: strin
 const currentNodeTest = ref<{ code: string; latency: string; error: string; ip: string; location: string; isp: string; ip_country?: string; ip_type?: string; is_isp?: string } | null>(null)
 const passwallAddLink = ref('')
 const passwallAddLoading = ref(false)
-const copyingNode = ref('')
+// 分享二维码弹窗状态
+const shareDialogVisible = ref(false)
+const sharingNode = ref('')
+const shareLink = ref('')
+const shareQrDataUrl = ref('')
 // 更新默认规则：loading 态与最终结果。
 const ruleUpdateLoading = ref(false)
 const ruleUpdateResp = ref<{ ok: boolean; message: string; duration: number } | null>(null)
@@ -1199,38 +1243,51 @@ const passwallURLTest = async (id: string, skipIP = false) => {
   }
 }
 
-// 复制节点：调用 node_export 获取节点分享链接并写入剪贴板。
-const copyNode = async (id: string) => {
+// 分享节点：调用 node_export 获取节点分享链接并生成二维码弹窗。
+const shareNode = async (id: string) => {
   if (!client.value) return
-  copyingNode.value = id
+  sharingNode.value = id
+  shareLink.value = ''
+  shareQrDataUrl.value = ''
   try {
     const resp = await sendClientCommand(client.value.key, {
       command: 'node_export',
       payload: id,
     })
     if (resp.result === 'ok' && resp.output) {
-      try {
-        await navigator.clipboard.writeText(resp.output)
-        ElMessage.success(t('clientDetail.copySuccess'))
-      } catch {
-        // fallback for older browsers
-        const textarea = document.createElement('textarea')
-        textarea.value = resp.output
-        textarea.style.position = 'fixed'
-        textarea.style.opacity = '0'
-        document.body.appendChild(textarea)
-        textarea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textarea)
-        ElMessage.success(t('clientDetail.copySuccess'))
-      }
+      shareLink.value = resp.output
+      shareQrDataUrl.value = await QRCode.toDataURL(resp.output, {
+        width: 440,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      })
+      shareDialogVisible.value = true
     } else {
-      ElMessage.error(t('clientDetail.copyFailed', { msg: resp.output || resp.result }))
+      ElMessage.error(t('clientDetail.shareFailed', { msg: resp.output || resp.result }))
     }
   } catch (error: any) {
-    ElMessage.error(t('clientDetail.copyFailed', { msg: error.message }))
+    ElMessage.error(t('clientDetail.shareFailed', { msg: error.message }))
   } finally {
-    copyingNode.value = ''
+    sharingNode.value = ''
+  }
+}
+
+// 复制分享弹窗中的链接
+const copyShareLink = async () => {
+  if (!shareLink.value) return
+  try {
+    await navigator.clipboard.writeText(shareLink.value)
+    ElMessage.success(t('clientDetail.copySuccess'))
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = shareLink.value
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success(t('clientDetail.copySuccess'))
   }
 }
 
@@ -1730,6 +1787,33 @@ const fetchSystemSettings = async () => {
   }
 }
 
+// 系统重启：点击后弹出确认框，确认再调用客户端 reboot 命令。
+const rebootSystem = async () => {
+  if (!client.value) return
+  try {
+    await ElMessageBox.confirm(t('clientDetail.sysRebootConfirm'), t('clientDetail.sysReboot'), {
+      type: 'warning',
+      confirmButtonText: t('clientDetail.sysReboot'),
+      cancelButtonText: t('common.cancel'),
+    })
+  } catch {
+    return
+  }
+  rebooting.value = true
+  try {
+    const resp = await sendClientCommand(client.value.key, { command: 'reboot', payload: '' })
+    if (resp.result === 'ok') {
+      ElMessage.success(t('clientDetail.sysRebooting'))
+    } else {
+      ElMessage.error(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
+    }
+  } catch (error: any) {
+    ElMessage.error(t('clientDetail.commandFailed', { msg: error.message }))
+  } finally {
+    rebooting.value = false
+  }
+}
+
 // Fetch the client's current frp config (server addr:port, user, protocol,
 // tls_enable) when entering the frp config panel, and prefill the form with it.
 const fetchFrpConfig = async () => {
@@ -1963,8 +2047,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.client-detail-page {
-}
 
 /* Breadcrumb */
 .breadcrumb {
@@ -2321,6 +2403,33 @@ html.dark .status-badge.online {
   min-width: 50px;
 }
 
+.share-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.share-qr-img {
+  width: 340px;
+  height: 340px;
+  border-radius: 8px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+/* PC 端（≥768px）放大二维码，提升可读性 */
+@media (min-width: 768px) {
+  .share-qr-img {
+    width: 440px;
+    height: 440px;
+  }
+}
+
+.share-qr-copy {
+  align-self: center;
+}
+
 .url-test-ok {
   color: #16a34a !important;  border-color: rgba(22, 163, 74, 0.3) !important;
   background: rgba(22, 163, 74, 0.06) !important;
@@ -2576,6 +2685,10 @@ html.dark .system-toggle-item:hover {
 
 .ssid-send-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.system-reboot-btn {
+  margin-left: auto;
 }
 
 .node-list-section {
@@ -3090,7 +3203,7 @@ html.dark .m-orb-2 {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 6px;
   }
 
   .passwall-node-info {
