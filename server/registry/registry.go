@@ -93,6 +93,24 @@ func (cr *ClientRegistry) RegisterWithControlID(
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
 
+	if enforceUnique {
+		// Treat clientID as the unique identity of a device. When a client
+		// reconnects under a new username (different composite key but the
+		// same rawClientID), drop any other registry entry sharing this
+		// clientID (typically the offline ghost left by the previous name).
+		// This keeps a single, up-to-date record per device across renames.
+		// NOTE: only safe when frps is not shared across independent users,
+		// since it merges entries that would otherwise be isolated by user.
+		for otherKey, other := range cr.clients {
+			if otherKey != key && other.RawClientID == rawClientID {
+				if other.RunID != "" {
+					delete(cr.runIndex, other.RunID)
+				}
+				delete(cr.clients, otherKey)
+			}
+		}
+	}
+
 	info, exists := cr.clients[key]
 	if enforceUnique && exists && info.Online && info.RunID != "" && info.RunID != runID {
 		return key, true
@@ -232,6 +250,66 @@ func (info ClientInfo) ClientID() string {
 		return info.RawClientID
 	}
 	return info.RunID
+}
+
+// GetByClientID returns the client identified by clientID, preferring the
+// online entry when several offline records share the same clientID (e.g.
+// leftovers from user renames). Returns false when no record matches.
+func (cr *ClientRegistry) GetByClientID(clientID string) (ClientInfo, bool) {
+	cr.mu.RLock()
+	defer cr.mu.RUnlock()
+
+	var offline ClientInfo
+	foundOffline := false
+	for _, info := range cr.clients {
+		if info.ClientID() == clientID {
+			if info.Online {
+				return *info, true
+			}
+			if !foundOffline {
+				offline = *info
+				foundOffline = true
+			}
+		}
+	}
+	if foundOffline {
+		return offline, true
+	}
+	return ClientInfo{}, false
+}
+
+// GetByRunID returns the online client identified by runID. Offline clients
+// drop their runID on disconnect, so only an active connection matches.
+func (cr *ClientRegistry) GetByRunID(runID string) (ClientInfo, bool) {
+	cr.mu.RLock()
+	defer cr.mu.RUnlock()
+
+	for _, info := range cr.clients {
+		if info.Online && info.RunID == runID {
+			return *info, true
+		}
+	}
+	return ClientInfo{}, false
+}
+
+// GetByAnyID resolves a client by clientID first, then falls back to runID.
+// It is used by the clientID/runID based API routes so the frontend no longer
+// needs to know the composite "{user}.{clientID}" key.
+func (cr *ClientRegistry) GetByAnyID(id string) (ClientInfo, bool) {
+	if info, ok := cr.GetByClientID(id); ok {
+		return info, true
+	}
+	return cr.GetByRunID(id)
+}
+
+// DeleteOfflineByAnyID resolves a client by clientID or runID and deletes it
+// when offline. Returns false if the client is online or does not exist.
+func (cr *ClientRegistry) DeleteOfflineByAnyID(id string) bool {
+	info, ok := cr.GetByAnyID(id)
+	if !ok {
+		return false
+	}
+	return cr.DeleteOfflineClient(info.Key)
 }
 
 func (cr *ClientRegistry) composeClientKey(user, id string) string {

@@ -8,9 +8,11 @@
       <template v-if="proxy && proxy.user">
         <router-link to="/clients" class="breadcrumb-item">{{ $t('nav.clients') }}</router-link>
         <span class="breadcrumb-separator">/</span>
-        <router-link :to="`/clients/${proxy.clientKey}`" class="breadcrumb-item">{{
-          proxy.user
-        }}</router-link>
+        <router-link
+          :to="proxy.clientID ? `/client/${proxy.clientID}` : `/clients/${proxy.clientKey}`"
+          class="breadcrumb-item"
+          >{{ proxy.user }}</router-link
+        >
         <span class="breadcrumb-separator">/</span>
       </template>
       <template v-else>

@@ -41,6 +41,26 @@ export const deleteClientV2 = (key: string) => {
   )
 }
 
+// Resolve a client by clientID (preferred) or runID, without the
+// composite "{user}.{clientID}" key. Supports the clientID-based routing.
+export const getClientByID = (id: string) => {
+  return http.getV2<ClientInfoData>(`../api/v2/client/${encodeURIComponent(id)}`)
+}
+
+// Resolve a client by runID (legacy devices without a clientID).
+export const getClientByRunID = (runID: string) => {
+  return http.getV2<ClientInfoData>(
+    `../api/v2/client/run/${encodeURIComponent(runID)}`,
+  )
+}
+
+// Delete an offline client identified by clientID or runID.
+export const deleteClientByID = (id: string) => {
+  return http.deleteV2<{ status: string }>(
+    `../api/v2/client/${encodeURIComponent(id)}`,
+  )
+}
+
 export const clearOfflineClients = () => {
   return http.postV2<SystemPruneResponse>(
     '../api/v2/system/prune?type=offline_clients',
@@ -64,6 +84,19 @@ export const sendClientCommand = (key: string, req: ClientCommandReq) => {
   return http
     .postV2<ClientCommandResp>(
       `../api/v2/clients/${encodeURIComponent(key)}/command`,
+      req,
+      { signal: controller.signal },
+    )
+    .finally(() => clearTimeout(timeoutId))
+}
+
+// Send a command to a client identified by clientID or runID.
+export const sendClientCommandByID = (id: string, req: ClientCommandReq) => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 35000)
+  return http
+    .postV2<ClientCommandResp>(
+      `../api/v2/client/${encodeURIComponent(id)}/command`,
       req,
       { signal: controller.signal },
     )

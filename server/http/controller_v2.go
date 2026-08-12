@@ -340,6 +340,137 @@ func (c *Controller) APIV2ClientCommand(ctx *httppkg.Context) (any, error) {
 	}
 }
 
+// /api/v2/client/{id}
+// Resolve a client by clientID (preferred) or runID without needing the
+// composite "{user}.{clientID}" key. This powers the clientID-based frontend
+// routing so users no longer depend on the frpc "user" field.
+func (c *Controller) APIV2ClientDetailByID(ctx *httppkg.Context) (any, error) {
+	id, err := decodeV2PathParam(ctx, "id", "client id")
+	if err != nil {
+		return nil, err
+	}
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+	info, ok := c.clientRegistry.GetByAnyID(id)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", id))
+	}
+	resp := buildClientInfoResp(info)
+	status := c.buildV2ClientStatus(info)
+	return model.V2ClientDetailResp{
+		ClientInfoResp: resp,
+		Status:         status,
+	}, nil
+}
+
+// /api/v2/client/run/{runID}
+// Resolve a client by runID, used for legacy devices that have no clientID.
+func (c *Controller) APIV2ClientDetailByRunID(ctx *httppkg.Context) (any, error) {
+	runID, err := decodeV2PathParam(ctx, "runID", "run id")
+	if err != nil {
+		return nil, err
+	}
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+	info, ok := c.clientRegistry.GetByRunID(runID)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client with runID %s not found", runID))
+	}
+	resp := buildClientInfoResp(info)
+	status := c.buildV2ClientStatus(info)
+	return model.V2ClientDetailResp{
+		ClientInfoResp: resp,
+		Status:         status,
+	}, nil
+}
+
+// DELETE /api/v2/client/{id}
+func (c *Controller) APIV2ClientDeleteByID(ctx *httppkg.Context) (any, error) {
+	id, err := decodeV2PathParam(ctx, "id", "client id")
+	if err != nil {
+		return nil, err
+	}
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+	info, ok := c.clientRegistry.GetByAnyID(id)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", id))
+	}
+	if info.Online {
+		return nil, httppkg.NewError(http.StatusConflict, "cannot delete an online client")
+	}
+	if !c.clientRegistry.DeleteOfflineClient(info.Key) {
+		return nil, httppkg.NewError(http.StatusConflict, "client became online or was removed")
+	}
+	return map[string]string{"status": "deleted"}, nil
+}
+
+// POST /api/v2/client/{id}/command
+func (c *Controller) APIV2ClientCommandByID(ctx *httppkg.Context) (any, error) {
+	id, err := decodeV2PathParam(ctx, "id", "client id")
+	if err != nil {
+		return nil, err
+	}
+	if c.clientRegistry == nil {
+		return nil, fmt.Errorf("client registry unavailable")
+	}
+	info, ok := c.clientRegistry.GetByAnyID(id)
+	if !ok {
+		return nil, httppkg.NewError(http.StatusNotFound, fmt.Sprintf("client %s not found", id))
+	}
+	if !info.Online {
+		return nil, httppkg.NewError(http.StatusConflict, "client is offline")
+	}
+	if c.cmdSender == nil {
+		return nil, httppkg.NewError(http.StatusInternalServerError, "command sender is not available")
+	}
+	var req model.V2ClientCommandReq
+	if err := ctx.BindJSON(&req); err != nil {
+		return nil, httppkg.NewError(http.StatusBadRequest, "invalid request body")
+	}
+	if req.Command == "" {
+		return nil, httppkg.NewError(http.StatusBadRequest, "command is required")
+	}
+	respCh := make(chan *msg.ServerCommandResp, 1)
+	cmd := &msg.ServerCommand{
+		Command: req.Command,
+		Payload: req.Payload,
+	}
+	err = c.cmdSender.SendCommandToClient(info.RunID, cmd, func(resp *msg.ServerCommandResp) {
+		select {
+		case respCh <- resp:
+		default:
+		}
+	})
+	if err != nil {
+		return nil, httppkg.NewError(http.StatusInternalServerError, err.Error())
+	}
+	cmdTimeout := 30 * time.Second
+	timer := time.NewTimer(cmdTimeout)
+	defer timer.Stop()
+	select {
+	case resp := <-respCh:
+		output := resp.Output
+		if (req.Command == "url_test_node" || req.Command == "url_test_device") && c.ipLookup != nil && output != "" {
+			if enriched, ok := enrichURLTestOutput(c.ipLookup, output); ok {
+				output = enriched
+			}
+		}
+		return model.V2ClientCommandResp{
+			Command: resp.Command,
+			Result:  resp.Result,
+			Output:  output,
+		}, nil
+	case <-timer.C:
+		return nil, httppkg.NewError(http.StatusGatewayTimeout, fmt.Sprintf("command timed out: client did not respond within %s", cmdTimeout))
+	case <-ctx.Req.Context().Done():
+		return nil, httppkg.NewError(http.StatusGatewayTimeout, "request cancelled or timed out")
+	}
+}
+
 // enrichURLTestOutput parses the JSON output of the frpc url_test_node /
 // url_test_device command, and if it carries an egress IP, augments it with:
 //   - geolocation (location/isp) from the local IP database held by frps, and

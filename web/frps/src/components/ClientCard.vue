@@ -77,10 +77,17 @@ defineEmits<{
 const router = useRouter()
 
 const viewDetail = () => {
-  router.push({
-    name: 'ClientDetail',
-    params: { key: props.client.key },
-  })
+  if (props.client.usesRunIDRoute) {
+    router.push({
+      name: 'ClientByRunID',
+      params: { runID: props.client.runID },
+    })
+  } else {
+    router.push({
+      name: 'ClientByID',
+      params: { id: props.client.routeID },
+    })
+  }
 }
 </script>
 

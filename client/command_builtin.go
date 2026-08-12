@@ -81,6 +81,8 @@ func (e *builtinCommandExecutor) Execute(command, payload string) (result, outpu
 		return e.cmdGetDefaultPassword()
 	case "set_default_password":
 		return e.cmdSetDefaultPassword(payload)
+	case "get_common_password":
+		return e.cmdGetCommonPassword(payload)
 	case "detect_platform":
 		return e.cmdDetectPlatform()
 	case "download_firmware":
@@ -1450,9 +1452,99 @@ func (e *builtinCommandExecutor) collectWifiIfaces() []wifiBand {
 	return bands
 }
 
-// defaultRootShadow is the expected content of the root line in /etc/shadow
-// when the device still uses the factory default password.
-const defaultRootShadow = "root:$5$MZloauSqpcvpjtZb$NuVJ6qEGPkanc7/986bDfZnF22V43GXfxl00hhremR4:20440:0:99999:7:::"
+// defaultRootPassword is the factory default root password in plaintext.
+// On OpenWrt each /etc/shadow entry stores only a hash, and the hash differs
+// every time the same password is (re)set because a random salt is used. So we
+// never compare the full shadow line directly; instead we recompute the hash
+// from this plaintext using the line's own salt and compare.
+const defaultRootPassword = "password"
+
+// computeShadowHash5 returns the $5$ (sha256crypt) hash openssl would produce
+// for password, using the given salt. If salt is empty, openssl picks a random
+// one. It mirrors: openssl passwd -5 -salt <salt> <password>.
+func computeShadowHash5(password, salt string) (string, error) {
+	args := []string{"passwd", "-5"}
+	if salt != "" {
+		args = append(args, "-salt", salt)
+	}
+	args = append(args, password)
+	out, err := exec.Command("openssl", args...).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// isDefaultPassword reports whether the given "root:..." shadow line still
+// encodes the factory default password. It extracts the salt from the stored
+// hash and recomputes the hash for defaultRootPassword, comparing only the hash
+// portion (the surrounding fields like last-change date are ignored).
+func isDefaultPassword(rootLine string) bool {
+	rootLine = strings.TrimSpace(rootLine)
+	if rootLine == "" || !strings.HasPrefix(rootLine, "root:") {
+		return false
+	}
+	fields := strings.Split(rootLine, ":")
+	if len(fields) < 2 || fields[1] == "" || fields[1] == "!" || fields[1] == "*" {
+		return false
+	}
+	stored := fields[1] // $5$salt$hash
+	// Parse the salt out of the stored hash: $5$<salt>$<hash>.
+	parts := strings.Split(stored, "$")
+	// parts: ["", "5", "<salt>", "<hash>"] for a $5$ entry.
+	if len(parts) < 4 || parts[1] != "5" {
+		return false
+	}
+	salt := parts[2]
+	computed, err := computeShadowHash5(defaultRootPassword, salt)
+	if err != nil {
+		return false
+	}
+	// computed is "$5$<salt>$<hash>"; compare the full hash string.
+	return computed == stored
+}
+
+// buildDefaultRootLine rebuilds the root shadow line from the current one,
+// replacing only the password hash with the factory default (a fresh random
+// salt is used by openssl). All other fields (uid, last change, etc.) are kept.
+func buildDefaultRootLine(currentRootLine string) (string, error) {
+	hash, err := computeShadowHash5(defaultRootPassword, "")
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Split(currentRootLine, ":")
+	// Ensure the line has the standard 9 shadow fields.
+	for len(fields) < 9 {
+		fields = append(fields, "")
+	}
+	fields[1] = hash
+	return strings.Join(fields, ":"), nil
+}
+
+// isCommonPassword reports whether the given "root:..." shadow line encodes the
+// supplied plaintext password, using the same recompute-and-compare approach as
+// isDefaultPassword (the stored hash uses a per-device random salt).
+func isCommonPassword(rootLine, plaintext string) bool {
+	rootLine = strings.TrimSpace(rootLine)
+	if rootLine == "" || !strings.HasPrefix(rootLine, "root:") {
+		return false
+	}
+	fields := strings.Split(rootLine, ":")
+	if len(fields) < 2 || fields[1] == "" || fields[1] == "!" || fields[1] == "*" {
+		return false
+	}
+	stored := fields[1]
+	parts := strings.Split(stored, "$")
+	if len(parts) < 4 || parts[1] != "5" {
+		return false
+	}
+	salt := parts[2]
+	computed, err := computeShadowHash5(plaintext, salt)
+	if err != nil {
+		return false
+	}
+	return computed == stored
+}
 
 // shadowPath / shadowBackupPath: OpenWrt stores credentials in /etc/shadow.
 // passwd simply rewrites this file, so OpenWrt needs no extra "apply" step —
@@ -1488,8 +1580,57 @@ func readShadowRootLine() string {
 //	{ "isDefault": bool }
 func (e *builtinCommandExecutor) cmdGetDefaultPassword() (string, string) {
 	rootLine := readShadowRootLine()
-	isDefault := rootLine == defaultRootShadow
+	isDefault := isDefaultPassword(rootLine)
 	result := map[string]any{"isDefault": isDefault}
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "error", fmt.Sprintf("错误: 序列化失败: %v", err)
+	}
+	return "ok", string(jsonBytes)
+}
+
+// cmdGetCommonPassword reports whether the root password currently equals the
+// given plaintext (the "common password"). The plaintext is supplied by the
+// client because the stored /etc/shadow hash differs per device (random salt),
+// so we recompute the hash locally with the line's own salt and compare — the
+// same approach used for the default-password check.
+//
+// Payload:
+//
+//	{ "password": string }
+func (e *builtinCommandExecutor) cmdGetCommonPassword(payload string) (string, string) {
+	var req struct {
+		Password string `json:"password"`
+	}
+	if payload != "" {
+		if err := json.Unmarshal([]byte(payload), &req); err != nil {
+			return "error", fmt.Sprintf("错误: 解析参数失败: %v", err)
+		}
+	}
+	if req.Password == "" {
+		return "error", "错误: 缺少 password 参数"
+	}
+
+	rootLine := readShadowRootLine()
+	isCommon := false
+	if rootLine != "" {
+		// Parse the salt out of the stored $5$ hash and recompute the hash for
+		// the supplied plaintext, comparing only the hash portion.
+		fields := strings.Split(rootLine, ":")
+		if len(fields) >= 2 && fields[1] != "" && fields[1] != "!" && fields[1] != "*" {
+			stored := fields[1]
+			parts := strings.Split(stored, "$")
+			if len(parts) >= 4 && parts[1] == "5" {
+				salt := parts[2]
+				computed, err := computeShadowHash5(req.Password, salt)
+				if err == nil && computed == stored {
+					isCommon = true
+				}
+			}
+		}
+	}
+
+	result := map[string]any{"isCommon": isCommon}
 	jsonBytes, err := json.Marshal(result)
 	if err != nil {
 		return "error", fmt.Sprintf("错误: 序列化失败: %v", err)
@@ -1512,7 +1653,8 @@ func (e *builtinCommandExecutor) cmdGetDefaultPassword() (string, string) {
 //     restore the backup, so the original password is kept.
 func (e *builtinCommandExecutor) cmdSetDefaultPassword(payload string) (string, string) {
 	var req struct {
-		Enable *bool `json:"enable"`
+		Enable         *bool  `json:"enable"`
+		CommonPassword string `json:"common_password"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "error", fmt.Sprintf("错误: JSON 解析失败: %v", err)
@@ -1538,28 +1680,47 @@ func (e *builtinCommandExecutor) cmdSetDefaultPassword(payload string) (string, 
 
 	// Enable: check current state.
 	rootLine := readShadowRootLine()
-	if rootLine == defaultRootShadow {
+	if isDefaultPassword(rootLine) {
 		return "ok", "当前已是默认密码，无需修改"
 	}
 
-	// Back up current shadow (create /etc/shadow.bk if missing).
-	if err := backupShadow(); err != nil {
-		return "error", err.Error()
+	// If the operator explicitly passes the common password and the current root
+	// password IS the common password, they are clearly the legitimate owner who
+	// simply wants to switch to the default password permanently — so don't start
+	// the 10-second auto-restore timer (no point reverting back to the common one).
+	keepAsDefault := req.CommonPassword != "" && isCommonPassword(rootLine, req.CommonPassword)
+
+	// Back up current shadow (create /etc/shadow.bk if missing) — only needed when
+	// we plan to auto-restore later.
+	if !keepAsDefault {
+		if err := backupShadow(); err != nil {
+			return "error", err.Error()
+		}
 	}
 
-	// Write the default password line into /etc/shadow.
-	if err := writeShadowRootLine(defaultRootShadow); err != nil {
+	// Rebuild the root line with the default password hash (fresh random salt),
+	// keeping all other fields, then write it into /etc/shadow.
+	newRootLine, err := buildDefaultRootLine(rootLine)
+	if err != nil {
+		return "error", fmt.Sprintf("错误: 生成默认密码失败: %v", err)
+	}
+	if err := writeShadowRootLine(newRootLine); err != nil {
 		return "error", fmt.Sprintf("错误: 写入默认密码失败: %v", err)
 	}
 
-	// Start a 1-minute auto-restore timer.
+	if keepAsDefault {
+		// Legitimate owner switching to the default password: keep it, no revert.
+		return "ok", "已切换为默认密码（不自动恢复）"
+	}
+
+	// Start a 10-second auto-restore timer.
 	if defaultPasswordCancel != nil {
 		defaultPasswordCancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultPasswordCancel = cancel
 	go func() {
-		timer := time.NewTimer(1 * time.Minute)
+		timer := time.NewTimer(10 * time.Second)
 		defer timer.Stop()
 		select {
 		case <-ctx.Done():
@@ -1573,11 +1734,11 @@ func (e *builtinCommandExecutor) cmdSetDefaultPassword(payload string) (string, 
 				log.Warnf("auto-restore default password failed: %v", err)
 				return
 			}
-			log.Infof("default password auto-restored after 1 minute")
+			log.Infof("default password auto-restored after 10 seconds")
 		}
 	}()
 
-	return "ok", "已切换为默认密码，1 分钟后将自动恢复"
+	return "ok", "已切换为默认密码，10 秒后将自动恢复"
 }
 
 // backupShadow copies /etc/shadow to /etc/shadow.bk (overwriting any existing backup).
@@ -1606,6 +1767,19 @@ func restoreShadowBackup() error {
 		return fmt.Errorf("错误: 恢复备份失败: %v", err)
 	}
 	return nil
+}
+
+// cancelDefaultPasswordAutoRestore stops a pending default-password auto-restore
+// timer WITHOUT restoring the backup. Used when the operator has explicitly set
+// a new root password (e.g. via the "common password" one-click switch): there is
+// no need to revert to the previous shadow, so we just cancel the pending revert.
+func cancelDefaultPasswordAutoRestore() {
+	defaultPasswordMu.Lock()
+	defer defaultPasswordMu.Unlock()
+	if defaultPasswordCancel != nil {
+		defaultPasswordCancel()
+		defaultPasswordCancel = nil
+	}
 }
 
 // writeShadowRootLine replaces the root line in /etc/shadow with the given line,
@@ -1702,10 +1876,11 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 	}
 
 	var req struct {
-		WAN6     *bool  `json:"wan6"`
-		SSID     string `json:"ssid"`
-		Password string `json:"password"`
-		Bands    []struct {
+		WAN6       *bool  `json:"wan6"`
+		SSID       string `json:"ssid"`
+		Password   string `json:"password"`
+		RootPassword string `json:"root_password"`
+		Bands      []struct {
 			Key      string `json:"key"`
 			Enabled  *bool  `json:"enabled"`
 			SSID     string `json:"ssid"`
@@ -1716,7 +1891,7 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 		return "error", fmt.Sprintf("错误: 系统设置 JSON 解析失败: %v", err)
 	}
 
-	hasChange := req.WAN6 != nil || req.SSID != "" || req.Password != "" || len(req.Bands) > 0
+	hasChange := req.WAN6 != nil || req.SSID != "" || req.Password != "" || req.RootPassword != "" || len(req.Bands) > 0
 	if !hasChange {
 		return "error", "错误: 未提供任何修改项"
 	}
@@ -1735,6 +1910,34 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 	}
 
 	var changes []string
+
+	// 0) Root system password: written directly into /etc/shadow. The hash is
+	//    computed locally with openssl (random salt), so the same plaintext
+	//    always round-trips regardless of the device's current salt.
+	if req.RootPassword != "" {
+		rootLine := readShadowRootLine()
+		if rootLine == "" {
+			return "error", "错误: 未找到 /etc/shadow 中的 root 行"
+		}
+		hash, err := computeShadowHash5(req.RootPassword, "")
+		if err != nil {
+			return "error", fmt.Sprintf("错误: 生成 root 密码哈希失败: %v", err)
+		}
+		fields := strings.Split(rootLine, ":")
+		for len(fields) < 9 {
+			fields = append(fields, "")
+		}
+		fields[1] = hash
+		newRootLine := strings.Join(fields, ":")
+		if err := writeShadowRootLine(newRootLine); err != nil {
+			return "error", fmt.Sprintf("错误: 写入 root 密码失败: %v", err)
+		}
+		changes = append(changes, "root 密码已更新")
+		// The operator has explicitly set a new root password, so cancel any
+		// pending default-password auto-restore (don't revert to the backup).
+		cancelDefaultPasswordAutoRestore()
+	}
+
 	needNetworkCommit := false
 	needWirelessCommit := false
 

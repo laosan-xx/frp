@@ -48,6 +48,17 @@ export class Client {
     return this.user || this.clientID || this.runID
   }
 
+  // Route identity used by the clientID/runID based routing. Prefer the
+  // stable clientID; fall back to runID for legacy devices without one.
+  get routeID(): string {
+    return this.clientID || this.runID
+  }
+
+  // Whether this client reaches the detail page via the runID route.
+  get usesRunIDRoute(): boolean {
+    return !this.clientID && !!this.runID
+  }
+
   get wireProtocolLabel(): string {
     if (!this.wireProtocol) return ''
     return `Protocol ${this.wireProtocol}`

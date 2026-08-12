@@ -34,6 +34,16 @@ const router = createRouter({
       component: ClientDetail,
     },
     {
+      path: '/client/:id',
+      name: 'ClientByID',
+      component: ClientDetail,
+    },
+    {
+      path: '/client/run/:runID',
+      name: 'ClientByRunID',
+      component: ClientDetail,
+    },
+    {
       path: '/proxies/:type?',
       name: 'Proxies',
       component: Proxies,

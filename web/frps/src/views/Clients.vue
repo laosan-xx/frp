@@ -107,7 +107,7 @@ import ConfirmDialog from '@shared/components/ConfirmDialog.vue'
 import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
 import ClientCard from '../components/ClientCard.vue'
-import { getClientsV2, deleteClientV2, clearOfflineClients } from '../api/client'
+import { getClientsV2, deleteClientV2, deleteClientByID, clearOfflineClients } from '../api/client'
 
 const { t } = useI18n()
 const { isMobile } = useResponsive()
@@ -230,7 +230,13 @@ const handleDeleteClient = async (client: Client) => {
   }
 
   try {
-    await deleteClientV2(client.key)
+    if (client.usesRunIDRoute) {
+      await deleteClientByID(client.runID)
+    } else if (client.clientID) {
+      await deleteClientByID(client.clientID)
+    } else {
+      await deleteClientV2(client.key)
+    }
     ElMessage({ message: t('clients.deleteSuccess'), type: 'success' })
     fetchData(true)
   } catch (err: any) {

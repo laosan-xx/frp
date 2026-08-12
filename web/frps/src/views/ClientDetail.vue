@@ -14,7 +14,7 @@
       <router-link to="/clients" class="breadcrumb-item">{{ $t('nav.clients') }}</router-link>
       <span class="breadcrumb-separator">/</span>
       <span class="breadcrumb-current">{{
-        client?.displayName || (loading ? $t('common.loading') : route.params.key)
+        client?.displayName || (loading ? $t('common.loading') : routeId)
       }}</span>
     </nav>
 
@@ -236,6 +236,7 @@
                       <el-button
                         size="small"
                         type="success"
+                        class="site-tag"
                         :loading="sharingNode === node.id"
                         @click="shareNode(node.id)"
                       >
@@ -455,6 +456,18 @@
                 <el-divider class="frp-config-divider" />
                 <div class="system-toggle-list">
                   <div class="system-toggle-item">
+                    <span class="system-toggle-label">{{ $t('clientDetail.sysReboot') }}</span>
+                    <el-button
+                      class="system-reboot-btn"
+                      type="danger"
+                      circle
+                      size="small"
+                      :loading="rebooting"
+                      :icon="SwitchButton"
+                      @click="rebootSystem"
+                    />
+                  </div>
+                  <div class="system-toggle-item">
                     <span class="system-toggle-label">
                       {{ $t('clientDetail.sysDefaultPassword') }}
                       <span v-if="defaultPasswordOn && defaultPasswordCountdown > 0" class="system-toggle-ssid">
@@ -470,6 +483,21 @@
                       :inactive-text="$t('clientDetail.sysNo')"
                       inline-prompt
                       @change="(v: any) => onToggleDefaultPassword(v)"
+                    />
+                  </div>
+                  <div class="system-toggle-item">
+                    <span class="system-toggle-label">
+                      {{ $t('clientDetail.sysCommonPassword') }}
+                    </span>
+                    <el-switch
+                      class="system-switch"
+                      :model-value="commonPasswordOn"
+                      :loading="commonPasswordLoading"
+                      :disabled="!defaultPasswordOn || defaultPasswordCountdown > 0"
+                      :active-text="$t('clientDetail.sysYes')"
+                      :inactive-text="$t('clientDetail.sysNo')"
+                      inline-prompt
+                      @change="(v: any) => onToggleCommonPassword(v)"
                     />
                   </div>
                   <div class="system-toggle-item">
@@ -497,18 +525,6 @@
                       :inactive-text="$t('clientDetail.sysOff')"
                       inline-prompt
                       @change="(v: any) => onToggleBand(b.key, v)"
-                    />
-                  </div>
-                  <div class="system-toggle-item">
-                    <span class="system-toggle-label">{{ $t('clientDetail.sysReboot') }}</span>
-                    <el-button
-                      class="system-reboot-btn"
-                      type="danger"
-                      circle
-                      size="small"
-                      :loading="rebooting"
-                      :icon="SwitchButton"
-                      @click="rebootSystem"
                     />
                   </div>
                 </div>
@@ -562,138 +578,159 @@
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-if="selectedPreset !== '' && selectedPreset !== 'update_system' && !isPasswall && (!needFirmwareUpdate || fwStep === 0) && !fwUpgrading && !isModifySystem" class="command-actions">
-              <el-button
-                type="primary"
-                :loading="commandSending"
-                :disabled="!hasCommandInput"
-                @click="sendCommand"
-              >
-                {{ sendBtnText }}
-              </el-button>
-            </div>
-            <div v-if="!isPasswall && commandResp" class="command-result">
-              <div class="result-row">
-                <span class="result-label">{{ $t('clientDetail.commandResult') }}:</span>
-                <el-tag :type="commandResp.result === 'ok' ? 'success' : 'danger'" size="small">
-                  {{ commandResp.result }}
-                </el-tag>
-              </div>
-              <div v-if="commandResp.output" class="output-row">
-                <span class="result-label">{{ $t('clientDetail.commandOutput') }}:</span>
-                <pre class="output-text">{{ commandResp.output }}</pre>
-              </div>
-            </div>
 
-            <!-- Firmware Update Wizard -->
-            <div v-if="needFirmwareUpdate" class="firmware-wizard frp-config-form">
-              <div class="frp-config-header">
-                <el-icon class="frp-config-header-icon"><Download /></el-icon>
-                <div class="frp-config-header-text">
-                  <div class="frp-config-title">{{ $t('clientDetail.cmdUpdateSystem') }}</div>
-                  <div class="frp-config-subtitle">{{ $t('clientDetail.systemUpdateHint') }}</div>
+              <!-- Firmware Update Wizard -->
+              <div v-if="needFirmwareUpdate" class="firmware-wizard frp-config-form">
+                <div class="frp-config-header">
+                  <el-icon class="frp-config-header-icon"><Download /></el-icon>
+                  <div class="frp-config-header-text">
+                    <div class="frp-config-title">{{ $t('clientDetail.cmdUpdateSystem') }}</div>
+                    <div class="frp-config-subtitle">{{ $t('clientDetail.systemUpdateHint') }}</div>
+                  </div>
+                </div>
+                <el-divider class="frp-config-divider" />
+                <div class="fw-current-version">
+                  <span class="fw-info-label">{{ $t('clientDetail.fwCurrentVersion') }}</span>
+                  <el-tag v-if="fwCurrentVersion" type="info" size="small" effect="plain">
+                    {{ fwCurrentVersion }}
+                  </el-tag>
+                  <span v-else>—</span>
+                </div>
+                <!-- Step 0: Check update button -->
+                <div v-if="fwStep === 0" class="fw-check-update">
+                  <el-button
+                    type="primary"
+                    :loading="commandSending"
+                    @click="sendCommand"
+                  >
+                    {{ sendBtnText }}
+                  </el-button>
+                </div>
+                <!-- Step 1: Detecting -->
+                <div v-if="fwStep === 1" class="fw-step">
+                  <div class="fw-step-loading">
+                    <el-icon class="is-loading"><Loading /></el-icon>
+                    <span>{{ $t('clientDetail.fwDetecting') }}</span>
+                  </div>
+                  <div v-if="fwError" class="fw-error">{{ fwError }}</div>
+                  <div class="fw-platform-info">
+                    <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">{{ $t('clientDetail.fwPlatform') }}</span><span>{{ fwPlatform.target }}</span></div>
+                    <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">{{ $t('clientDetail.fwModel') }}</span><span>{{ fwPlatform.model }}</span></div>
+                    <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">Board</span><span>{{ fwPlatform.boardName }}</span></div>
+                  </div>
+                </div>
+
+                <!-- Step 2: Select Branch -->
+                <div v-if="fwStep >= 2" class="fw-step">
+                  <h4 class="fw-step-title">{{ $t('clientDetail.fwSelectBranch') }}</h4>
+                  <div v-if="fwLoading" class="fw-step-loading">
+                    <el-icon class="is-loading"><Loading /></el-icon>
+                    <span>{{ $t('clientDetail.fwFetching') }}</span>
+                  </div>
+                  <div v-if="fwError" class="fw-error">{{ fwError }}</div>
+                  <div>
+                    <el-radio-group v-if="fwBranches.length > 0" v-model="fwSelectedBranch" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onBranchSelect">
+                      <el-radio v-for="(branch, idx) in fwBranches" :key="idx" :value="idx" class="node-radio-item">
+                        <span class="node-name">{{ branch.config }} / {{ branch.branch }}</span>
+                        <el-tag size="small" type="info">{{ branch.date }}</el-tag>
+                        <el-tag size="small" type="warning">{{ branch.assets.length }} {{ $t('clientDetail.fwFiles') }}</el-tag>
+                      </el-radio>
+                    </el-radio-group>
+                  </div>
+                </div>
+
+                <!-- Step 3: Select Firmware File -->
+                <div v-if="fwStep >= 3 && selectedBranchFiles.length > 0" class="fw-step">
+                  <h4 class="fw-step-title">{{ $t('clientDetail.fwSelectFile') }}</h4>
+                  <div>
+                    <el-radio-group v-model="fwSelectedFile" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onFileSelect">
+                      <el-radio v-for="(file, idx) in selectedBranchFiles" :key="idx" :value="idx" class="node-radio-item">
+                        <span class="node-name">{{ file.name }}</span>
+                        <el-tag size="small">{{ formatFileSize(file.size) }}</el-tag>
+                      </el-radio>
+                    </el-radio-group>
+                  </div>
+                  <!-- Download button: toggles between download / cancel / re-download -->
+                  <el-button
+                    v-if="fwSelectedFile !== null && !fwDownloadStarted && !fwUpgrading"
+                    type="primary"
+                    style="margin-top: 12px"
+                    @click="startDownload"
+                  >
+                    {{ $t('clientDetail.fwDownload') }}
+                  </el-button>
+                  <el-button
+                    v-if="fwSelectedFile !== null && fwDownloadStarted && !fwUpgrading"
+                    :type="fwDownloadStatus.status === 'downloading' || fwDownloadStatus.status === 'complete' ? 'danger' : 'primary'"
+                    style="margin-top: 12px"
+                    @click="fwDownloadStatus.status === 'downloading' ? cancelDownload() : fwDownloadStatus.status === 'complete' ? runSysupgrade() : startDownload()"
+                  >
+                    {{ fwDownloadStatus.status === 'downloading' ? $t('clientDetail.fwCancel') : fwDownloadStatus.status === 'complete' ? $t('clientDetail.fwUpgradeNow') : $t('clientDetail.fwReDownload') }}
+                  </el-button>
+                </div>
+
+                <!-- Step 4: Download Progress (clean, no buttons) -->
+                <div v-if="fwDownloadStarted && !fwUpgrading" class="fw-step">
+                  <h4 class="fw-step-title">
+                    {{ fwDownloadStatus.status === 'cancelled' ? $t('clientDetail.fwCancelled') : fwDownloadStatus.status === 'complete' ? $t('clientDetail.fwDownloadComplete') : fwDownloadStatus.status === 'error' ? $t('clientDetail.fwDownload') : $t('clientDetail.fwDownloading') }}
+                  </h4>
+                  <el-progress
+                    :show-text="false"
+                    :percentage="Math.round(fwDownloadStatus.progress)"
+                    :status="fwDownloadStatus.status === 'complete' ? 'success' : fwDownloadStatus.status === 'error' ? 'exception' : fwDownloadStatus.status === 'cancelled' ? 'warning' : undefined"
+                  />
+                  <div class="fw-download-info">
+                    <span>{{ formatFileSize(fwDownloadStatus.downloadedBytes) }} / {{ formatFileSize(fwDownloadStatus.totalBytes) }}</span>
+                  </div>
+                  <div v-if="fwDownloadStatus.status === 'error'" class="fw-error">{{ fwDownloadStatus.error }}</div>
+                </div>
+
+                <!-- Upgrading State -->
+                <div v-if="fwUpgrading" class="fw-step">
+                  <div class="fw-step-loading">
+                    <el-icon class="is-loading"><Loading /></el-icon>
+                    <span>{{ $t('clientDetail.fwUpgrading') }}</span>
+                  </div>
                 </div>
               </div>
-              <el-divider class="frp-config-divider" />
-              <div class="fw-current-version">
-                <span class="fw-info-label">{{ $t('clientDetail.fwCurrentVersion') }}</span>
-                <span>{{ fwCurrentVersion === '' ? '—' : fwCurrentVersion }}</span>
-              </div>
-              <!-- Step 0: Check update button -->
-              <div v-if="fwStep === 0" class="fw-check-update">
+
+              <div v-if="selectedPreset !== '' && selectedPreset !== 'update_system' && !isPasswall && (!needFirmwareUpdate || fwStep === 0) && !fwUpgrading && !isModifySystem" class="command-actions">
                 <el-button
+                  v-if="reconnecting"
+                  type="primary"
+                  :loading="true"
+                  disabled
+                >
+                  {{ $t('clientDetail.reconnecting') }}
+                </el-button>
+                <el-button
+                  v-else-if="returnCountdown > 0"
+                  type="info"
+                  :loading="true"
+                  disabled
+                >
+                  {{ returnCountdown }}{{ $t('clientDetail.returnCountdownSuffix') }}
+                </el-button>
+                <el-button
+                  v-else
                   type="primary"
                   :loading="commandSending"
+                  :disabled="!hasCommandInput"
                   @click="sendCommand"
                 >
                   {{ sendBtnText }}
                 </el-button>
               </div>
-              <!-- Step 1: Detecting -->
-              <div v-if="fwStep === 1" class="fw-step">
-                <div class="fw-step-loading">
-                  <el-icon class="is-loading"><Loading /></el-icon>
-                  <span>{{ $t('clientDetail.fwDetecting') }}</span>
+              <div v-if="!isPasswall && commandResp" class="command-result">
+                <div class="result-row">
+                  <span class="result-label">{{ $t('clientDetail.commandResult') }}:</span>
+                  <el-tag :type="commandResp.result === 'ok' ? 'success' : 'danger'" size="small">
+                    {{ commandResp.result }}
+                  </el-tag>
                 </div>
-                <div v-if="fwError" class="fw-error">{{ fwError }}</div>
-                <div class="fw-platform-info">
-                  <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">{{ $t('clientDetail.fwPlatform') }}</span><span>{{ fwPlatform.target }}</span></div>
-                  <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">{{ $t('clientDetail.fwModel') }}</span><span>{{ fwPlatform.model }}</span></div>
-                  <div v-if="fwPlatform" class="fw-info-row"><span class="fw-info-label">Board</span><span>{{ fwPlatform.boardName }}</span></div>
-                </div>
-              </div>
-
-              <!-- Step 2: Select Branch -->
-              <div v-if="fwStep >= 2" class="fw-step">
-                <h4 class="fw-step-title">{{ $t('clientDetail.fwSelectBranch') }}</h4>
-                <div v-if="fwLoading" class="fw-step-loading">
-                  <el-icon class="is-loading"><Loading /></el-icon>
-                  <span>{{ $t('clientDetail.fwFetching') }}</span>
-                </div>
-                <div v-if="fwError" class="fw-error">{{ fwError }}</div>
-                <div>
-                  <el-radio-group v-if="fwBranches.length > 0" v-model="fwSelectedBranch" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onBranchSelect">
-                    <el-radio v-for="(branch, idx) in fwBranches" :key="idx" :value="idx" class="node-radio-item">
-                      <span class="node-name">{{ branch.config }} / {{ branch.branch }}</span>
-                      <el-tag size="small" type="info">{{ branch.date }}</el-tag>
-                      <el-tag size="small" type="warning">{{ branch.assets.length }} {{ $t('clientDetail.fwFiles') }}</el-tag>
-                    </el-radio>
-                  </el-radio-group>
-                </div>
-              </div>
-
-              <!-- Step 3: Select Firmware File -->
-              <div v-if="fwStep >= 3 && selectedBranchFiles.length > 0" class="fw-step">
-                <h4 class="fw-step-title">{{ $t('clientDetail.fwSelectFile') }}</h4>
-                <div>
-                  <el-radio-group v-model="fwSelectedFile" :disabled="fwUpgrading || fwDownloadStatus.status === 'downloading'" class="node-radio-group" @change="onFileSelect">
-                    <el-radio v-for="(file, idx) in selectedBranchFiles" :key="idx" :value="idx" class="node-radio-item">
-                      <span class="node-name">{{ file.name }}</span>
-                      <el-tag size="small">{{ formatFileSize(file.size) }}</el-tag>
-                    </el-radio>
-                  </el-radio-group>
-                </div>
-                <!-- Download button: toggles between download / cancel / re-download -->
-                <el-button
-                  v-if="fwSelectedFile !== null && !fwDownloadStarted && !fwUpgrading"
-                  type="primary"
-                  style="margin-top: 12px"
-                  @click="startDownload"
-                >
-                  {{ $t('clientDetail.fwDownload') }}
-                </el-button>
-                <el-button
-                  v-if="fwSelectedFile !== null && fwDownloadStarted && !fwUpgrading"
-                  :type="fwDownloadStatus.status === 'downloading' || fwDownloadStatus.status === 'complete' ? 'danger' : 'primary'"
-                  style="margin-top: 12px"
-                  @click="fwDownloadStatus.status === 'downloading' ? cancelDownload() : fwDownloadStatus.status === 'complete' ? runSysupgrade() : startDownload()"
-                >
-                  {{ fwDownloadStatus.status === 'downloading' ? $t('clientDetail.fwCancel') : fwDownloadStatus.status === 'complete' ? $t('clientDetail.fwUpgradeNow') : $t('clientDetail.fwReDownload') }}
-                </el-button>
-              </div>
-
-              <!-- Step 4: Download Progress (clean, no buttons) -->
-              <div v-if="fwDownloadStarted && !fwUpgrading" class="fw-step">
-                <h4 class="fw-step-title">
-                  {{ fwDownloadStatus.status === 'cancelled' ? $t('clientDetail.fwCancelled') : fwDownloadStatus.status === 'complete' ? $t('clientDetail.fwDownloadComplete') : fwDownloadStatus.status === 'error' ? $t('clientDetail.fwDownload') : $t('clientDetail.fwDownloading') }}
-                </h4>
-                <el-progress
-                  :show-text="false"
-                  :percentage="Math.round(fwDownloadStatus.progress)"
-                  :status="fwDownloadStatus.status === 'complete' ? 'success' : fwDownloadStatus.status === 'error' ? 'exception' : fwDownloadStatus.status === 'cancelled' ? 'warning' : undefined"
-                />
-                <div class="fw-download-info">
-                  <span>{{ formatFileSize(fwDownloadStatus.downloadedBytes) }} / {{ formatFileSize(fwDownloadStatus.totalBytes) }}</span>
-                </div>
-                <div v-if="fwDownloadStatus.status === 'error'" class="fw-error">{{ fwDownloadStatus.error }}</div>
-              </div>
-
-              <!-- Upgrading State -->
-              <div v-if="fwUpgrading" class="fw-step">
-                <div class="fw-step-loading">
-                  <el-icon class="is-loading"><Loading /></el-icon>
-                  <span>{{ $t('clientDetail.fwUpgrading') }}</span>
+                <div v-if="commandResp.output" class="output-row">
+                  <span class="result-label">{{ $t('clientDetail.commandOutput') }}:</span>
+                  <pre class="output-text">{{ commandResp.output }}</pre>
                 </div>
               </div>
             </div>
@@ -770,8 +807,8 @@ import { ArrowLeft, Loading, Search, EditPen, Connection, User, Setting, Iphone,
 import { useI18n } from 'vue-i18n'
 import { useResponsive } from '../composables/useResponsive'
 import { Client } from '../utils/client'
-import { getClientV2, sendClientCommand, fetchFirmwareReleases } from '../api/client'
-import type { ClientCommandResp, FirmwareBranch } from '../api/client'
+import { getClientV2, sendClientCommand, sendClientCommandByID, getClientByID, getClientByRunID, fetchFirmwareReleases } from '../api/client'
+import type { ClientCommandResp, ClientCommandReq, FirmwareBranch, FirmwareAsset } from '../api/client'
 import { getProxiesV2 } from '../api/proxy'
 import {
   BaseProxy,
@@ -792,6 +829,28 @@ import type { ServerInfo } from '../types/server'
 
 const route = useRoute()
 const router = useRouter()
+
+// The client identity used by the current route. Supports three forms:
+//   /clients/:key        -> legacy composite "user.clientID" key
+//   /client/:id          -> clientID (preferred, stable across restarts)
+//   /client/run/:runID   -> runID (legacy devices without a clientID)
+const routeIsRunID = computed(() => !!route.params.runID)
+const routeId = computed(() => {
+  if (route.params.runID) return route.params.runID as string
+  if (route.params.id) return route.params.id as string
+  if (route.params.key) return route.params.key as string
+  return ''
+})
+
+// Send a command to the current client, resolving it by clientID/runID when
+// on the new routes, or by the legacy composite key otherwise.
+const sendCmd = (req: { command: string; payload?: string }) => {
+  const body: ClientCommandReq = { command: req.command, payload: req.payload ?? '' }
+  if (route.params.key) {
+    return sendClientCommand(route.params.key as string, body)
+  }
+  return sendClientCommandByID(routeId.value, body)
+}
 const { t } = useI18n()
 const { isMobile } = useResponsive()
 const client = ref<Client | null>(null)
@@ -944,6 +1003,80 @@ const frpInitial = ref<{ addrPort: string; user: string; protocol: string; tlsEn
   tlsEnable: null,
 })
 
+// After sending an frp config command, the client may reconnect under a new
+// key (e.g. when only the user changed). These flags drive the UX:
+// - reconnecting: waiting for the client to reappear under its new key.
+// - returnCountdown: when other settings changed, button shows a countdown
+//   before navigating back to the client list.
+const reconnecting = ref(false)
+const returnCountdown = ref(0)
+let returnTimer: ReturnType<typeof setInterval> | null = null
+
+// After a username-only change the client reconnects but keeps the same
+// clientID/runID, so the route identity is unchanged. We poll until the client
+// reappears AND carries the new username (frpc restart takes time, and the old
+// session may still be online for a moment). Only then do we refresh the local
+// client data. No navigation is needed.
+// `expectedUser` (when provided) is the username we just configured; the
+// reconnect is considered complete only once the reconnected client reports
+// that exact username.
+const waitForReconnect = async (id: string, expectedUser?: string) => {
+  reconnecting.value = true
+  const deadline = Date.now() + 30000
+  const fetchOnce = async () => {
+    if (routeIsRunID.value) {
+      try {
+        return await getClientByRunID(id)
+      } catch {
+        return null
+      }
+    }
+    try {
+      return await getClientByID(id)
+    } catch {
+      return null
+    }
+  }
+  const tick = async () => {
+    if (Date.now() > deadline) {
+      reconnecting.value = false
+      ElMessage.warning(t('clientDetail.reconnectTimeout'))
+      return
+    }
+    const data = await fetchOnce()
+    if (!data) {
+      setTimeout(tick, 1500)
+      return
+    }
+    // Wait until the client actually reconnected with the expected username.
+    // While the old session is still online (old user), keep waiting.
+    if (expectedUser !== undefined && (data.user || '') !== expectedUser) {
+      setTimeout(tick, 1500)
+      return
+    }
+    reconnecting.value = false
+    client.value = new Client(data)
+    // Refresh the proxy list (it is filtered by user) and the frp config
+    // form so they reflect the new username immediately.
+    fetchProxies()
+    fetchFrpConfig()
+  }
+  tick()
+}
+
+// Start the "return to client list" countdown (other frp settings changed).
+const startReturnCountdown = () => {
+  if (returnTimer !== null) clearInterval(returnTimer)
+  returnCountdown.value = 5
+  returnTimer = setInterval(() => {
+    returnCountdown.value -= 1
+    if (returnCountdown.value <= 0) {
+      if (returnTimer !== null) { clearInterval(returnTimer); returnTimer = null }
+      router.push('/clients')
+    }
+  }, 1000)
+}
+
 // System settings fields (for modify_system command)
 const isModifySystem = computed(() => selectedPreset.value === 'modify_system')
 const systemWan6 = ref(true)
@@ -961,7 +1094,11 @@ const systemLoading = ref(false)
 // Default-password switch state (for get_default_password / set_default_password).
 const defaultPasswordOn = ref(false)
 const defaultPasswordLoading = ref(false)
-const defaultPasswordCountdown = ref(0) // seconds remaining on the 1-min auto-restore timer
+const defaultPasswordCountdown = ref(0) // seconds remaining on the auto-restore timer
+
+// Common-password switch: only enabled while the device is on the default password.
+const commonPasswordOn = ref(false)
+const commonPasswordLoading = ref(false)
 let defaultPasswordTimer: ReturnType<typeof setInterval> | null = null
 
 const stopDefaultPasswordTimer = () => {
@@ -974,7 +1111,7 @@ const stopDefaultPasswordTimer = () => {
 
 const startDefaultPasswordCountdown = () => {
   stopDefaultPasswordTimer()
-  defaultPasswordCountdown.value = 60
+  defaultPasswordCountdown.value = 10
   defaultPasswordTimer = setInterval(() => {
     defaultPasswordCountdown.value -= 1
     if (defaultPasswordCountdown.value <= 0) {
@@ -1047,7 +1184,7 @@ const onPresetChange = (value: string) => {
   }
   // Pre-fetch current system version when entering system update (no auto-check)
   if (value === 'update_system' && client.value) {
-    sendClientCommand(client.value.key, { command: 'get_system_version', payload: '' })
+    sendCmd({ command: 'get_system_version', payload: '' })
       .then((verResp) => {
         if (verResp.result === 'ok') {
           const ver = JSON.parse(verResp.output)
@@ -1062,11 +1199,16 @@ const onPresetChange = (value: string) => {
 
 const fetchNodeList = async () => {
   if (!client.value) return
-  nodeListLoading.value = true
+  // Only show the full-screen loading state on the very first load (no list
+  // yet). On refresh (add/delete/enable/disable) keep the existing list
+  // visible to avoid the layout collapsing into the spinner and back — which
+  // caused the visible "jitter" when nodes changed.
+  if (nodeList.value.length === 0) {
+    nodeListLoading.value = true
+  }
   nodeListError.value = ''
-  nodeList.value = []
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'get_nodes',
       payload: '',
     })
@@ -1124,7 +1266,7 @@ const fetchCurrentNodeInfo = async () => {
   try {
     let resp
     if (passwallRunning.value && passwallActiveNode.value) {
-      resp = await sendClientCommand(client.value.key, {
+      resp = await sendCmd({
         command: 'url_test_node',
         payload: passwallActiveNode.value,
       })
@@ -1160,7 +1302,7 @@ const passwallEnableNode = async (id: string) => {
   if (!client.value) return
   passwallNodeLoading.value = { [id]: 'enable' }
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'set_node',
       payload: id,
     })
@@ -1182,7 +1324,7 @@ const passwallDisableNode = async () => {
   if (!client.value) return
   passwallNodeLoading.value = { __disable__: 'disable' }
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'disable_passwall',
       payload: '',
     })
@@ -1204,7 +1346,7 @@ const passwallDeleteNode = async (id: string) => {
   if (!client.value) return
   passwallNodeLoading.value = { [id]: 'delete' }
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'del_node',
       payload: id,
     })
@@ -1228,7 +1370,7 @@ const passwallURLTest = async (id: string, skipIP = false) => {
   if (!client.value) return
   passwallNodeTestState.value = { ...passwallNodeTestState.value, [id]: { loading: true, code: '', latency: '', error: '', ip: '', location: '', isp: '', ip_country: '', ip_type: '', is_isp: '' } }
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: skipIP ? 'url_test_node_noiip' : 'url_test_node',
       payload: id,
     })
@@ -1250,7 +1392,7 @@ const shareNode = async (id: string) => {
   shareLink.value = ''
   shareQrDataUrl.value = ''
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'node_export',
       payload: id,
     })
@@ -1295,7 +1437,7 @@ const passwallAddNode = async () => {
   if (!client.value || !passwallAddLink.value.trim()) return
   passwallAddLoading.value = true
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'node_link',
       payload: passwallAddLink.value.trim(),
     })
@@ -1333,13 +1475,19 @@ const fetchServerInfo = (): Promise<ServerInfo> => {
 }
 
 const fetchClient = async (): Promise<boolean> => {
-  const key = route.params.key as string
-  if (!key) {
+  if (!routeId.value) {
     loading.value = false
     return false
   }
   try {
-    const data = await getClientV2(key)
+    let data
+    if (route.params.runID) {
+      data = await getClientByRunID(routeId.value)
+    } else if (route.params.id) {
+      data = await getClientByID(routeId.value)
+    } else {
+      data = await getClientV2(routeId.value)
+    }
     client.value = new Client(data)
     return true
   } catch (error: any) {
@@ -1479,8 +1627,17 @@ const fwSelectedBranch = ref<number | null>(null)
 const fwSelectedFile = ref<number | null>(null)
 const fwDownloadStatus = ref<FwDownloadStatus>({ status: 'idle', filename: '', totalBytes: 0, downloadedBytes: 0, progress: 0 })
 const fwDownloadStarted = ref(false)
-// Track downloaded files: key = "branchIdx_fileIdx", value = { filename, totalBytes }
-const fwDownloadedFiles: Record<string, { filename: string; totalBytes: number }> = {}
+// Track downloaded files keyed by a stable firmware identity (name + size),
+// not by list position. This survives list re-fetches/reorders and lets us
+// skip re-downloading a firmware we already have. `size` also acts as a
+// lightweight integrity check (the "md5-like" guard the user asked for): if a
+// re-selected file has the same name but a different size, it's a new build and
+// must be downloaded again.
+const fwDownloadedFiles: Record<string, { filename: string; totalBytes: number; size: number }> = {}
+
+// Stable identity for a firmware asset: name + size. GitHub release assets have
+// no md5 in their API, so size is the cheapest reliable "same file" signal.
+const fwFileIdentity = (file: FirmwareAsset): string => `${file.name}|${file.size}`
 const fwStep = ref(0)
 const fwLoading = ref(false)
 const fwError = ref('')
@@ -1502,7 +1659,9 @@ const formatFileSize = (bytes: number): string => {
 const resetFirmwareWizard = () => {
   fwStep.value = 0
   fwPlatform.value = null
-  fwCurrentVersion.value = ''
+  // Keep fwCurrentVersion: it is prefetched on entry and re-fetched by
+  // startFirmwareWizard (which overwrites it), so clearing it here would make
+  // the version tag flicker when clicking "check update".
   fwBranches.value = []
   fwSelectedBranch.value = null
   fwSelectedFile.value = null
@@ -1525,17 +1684,17 @@ const startFirmwareWizard = async () => {
   try {
     // Fetch current system version independently (best-effort, not blocking).
     try {
-      const verResp = await sendClientCommand(client.value.key, { command: 'get_system_version', payload: '' })
+      const verResp = await sendCmd({ command: 'get_system_version', payload: '' })
       if (verResp.result === 'ok') {
         const ver = JSON.parse(verResp.output)
         fwCurrentVersion.value = ver.version || ''
-      } else {
-        fwCurrentVersion.value = ''
       }
+      // On failure, keep the previously displayed version instead of clearing
+      // it (avoids the tag flickering to "—" on a transient error).
     } catch {
-      fwCurrentVersion.value = ''
+      // Keep the previous value on error.
     }
-    const resp = await sendClientCommand(client.value.key, { command: 'detect_platform', payload: '' })
+    const resp = await sendCmd({ command: 'detect_platform', payload: '' })
     if (resp.result === 'ok') {
       fwPlatform.value = JSON.parse(resp.output)
       fwStep.value = 2
@@ -1575,12 +1734,17 @@ const onBranchSelect = (idx: number) => {
   fwDownloadStarted.value = false
 }
 
-// When a file is selected, check if it was previously downloaded
+// When a file is selected, check if the same firmware was already downloaded.
+// Match by stable identity (name + size). If a file with the same name but a
+// different size is selected, it's a different build, so we don't treat it as
+// already downloaded.
 const onFileSelect = () => {
   if (fwSelectedBranch.value === null || fwSelectedFile.value === null) return
-  const key = `${fwSelectedBranch.value}_${fwSelectedFile.value}`
-  const cached = fwDownloadedFiles[key]
-  if (cached) {
+  const file = selectedBranchFiles.value[fwSelectedFile.value]
+  if (!file) return
+  const id = fwFileIdentity(file)
+  const cached = fwDownloadedFiles[id]
+  if (cached && cached.size === file.size) {
     fwDownloadStarted.value = true
     fwStep.value = 4
     fwDownloadStatus.value = { status: 'complete', filename: cached.filename, totalBytes: cached.totalBytes, downloadedBytes: cached.totalBytes, progress: 100 }
@@ -1597,7 +1761,7 @@ const startDownload = async () => {
   fwStep.value = 4
   try {
     const payload = JSON.stringify({ url: file.url, filename: file.name })
-    await sendClientCommand(client.value.key, { command: 'download_firmware', payload })
+    await sendCmd({ command: 'download_firmware', payload })
     fwPollTimer = window.setInterval(pollDownloadStatus, 2000)
   } catch (error: any) {
     fwDownloadStatus.value = { status: 'error', filename: file.name, totalBytes: 0, downloadedBytes: 0, progress: 0, error: error.message }
@@ -1607,16 +1771,21 @@ const startDownload = async () => {
 const pollDownloadStatus = async () => {
   if (!client.value) return
   try {
-    const resp = await sendClientCommand(client.value.key, { command: 'download_status', payload: '' })
+    const resp = await sendCmd({ command: 'download_status', payload: '' })
     if (resp.result === 'ok') {
       fwDownloadStatus.value = JSON.parse(resp.output)
       if (fwDownloadStatus.value.status === 'complete' || fwDownloadStatus.value.status === 'error' || fwDownloadStatus.value.status === 'cancelled') {
         if (fwPollTimer !== null) { clearInterval(fwPollTimer); fwPollTimer = null }
-        // Remember completed downloads so switching back shows "立即更新"
+        // Remember completed downloads (keyed by stable firmware identity) so
+        // re-selecting the same firmware shows "立即更新" without re-downloading.
         if (fwDownloadStatus.value.status === 'complete' && fwSelectedBranch.value !== null && fwSelectedFile.value !== null) {
-          fwDownloadedFiles[`${fwSelectedBranch.value}_${fwSelectedFile.value}`] = {
-            filename: fwDownloadStatus.value.filename,
-            totalBytes: fwDownloadStatus.value.totalBytes,
+          const file = selectedBranchFiles.value[fwSelectedFile.value]
+          if (file) {
+            fwDownloadedFiles[fwFileIdentity(file)] = {
+              filename: fwDownloadStatus.value.filename,
+              totalBytes: fwDownloadStatus.value.totalBytes,
+              size: file.size,
+            }
           }
         }
       }
@@ -1627,7 +1796,7 @@ const pollDownloadStatus = async () => {
 const cancelDownload = async () => {
   if (!client.value) return
   try {
-    await sendClientCommand(client.value.key, { command: 'cancel_download', payload: '' })
+    await sendCmd({ command: 'cancel_download', payload: '' })
     fwDownloadStatus.value.status = 'cancelled'
     if (fwPollTimer !== null) { clearInterval(fwPollTimer); fwPollTimer = null }
   } catch { /* ignore */ }
@@ -1637,7 +1806,7 @@ const runSysupgrade = async () => {
   if (!client.value || !fwDownloadStatus.value.filename) return
   fwUpgrading.value = true
   try {
-    const resp = await sendClientCommand(client.value.key, { command: 'run_sysupgrade', payload: fwDownloadStatus.value.filename })
+    const resp = await sendCmd({ command: 'run_sysupgrade', payload: fwDownloadStatus.value.filename })
     commandResp.value = resp
   } catch (error: any) {
     commandResp.value = { command: '', result: 'error', output: error.message }
@@ -1674,7 +1843,7 @@ const sendWifiChange = async () => {
     const payload: any = { bands }
     if (ssid) payload.ssid = ssid
     if (password) payload.password = password
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'modify_system',
       payload: JSON.stringify(payload),
     })
@@ -1708,7 +1877,7 @@ const onToggleWan6 = async (value: boolean) => {
   wan6Loading.value = true
   commandResp.value = null
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'modify_system',
       payload: JSON.stringify({ wan6: value }),
     })
@@ -1737,7 +1906,7 @@ const onToggleBand = async (key: string, value: boolean) => {
   band.loading = true
   commandResp.value = null
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'modify_system',
       payload: JSON.stringify({ bands: [{ key, enabled: value }] }),
     })
@@ -1761,7 +1930,7 @@ const fetchSystemSettings = async () => {
   if (!client.value) return
   systemLoading.value = true
   try {
-    const resp = await sendClientCommand(client.value.key, { command: 'get_system', payload: '' })
+    const resp = await sendCmd({ command: 'get_system', payload: '' })
     if (resp.result === 'ok') {
       const data = JSON.parse(resp.output)
       if (typeof data.wan6 === 'boolean') systemWan6.value = data.wan6
@@ -1775,8 +1944,9 @@ const fetchSystemSettings = async () => {
           password: b.password || '',
         }))
       }
-      // Also query default-password state.
+      // Also query default-password and common-password states.
       await fetchDefaultPassword()
+      await fetchCommonPassword()
     } else {
       ElMessage.warning(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
     }
@@ -1801,7 +1971,7 @@ const rebootSystem = async () => {
   }
   rebooting.value = true
   try {
-    const resp = await sendClientCommand(client.value.key, { command: 'reboot', payload: '' })
+    const resp = await sendCmd({ command: 'reboot', payload: '' })
     if (resp.result === 'ok') {
       ElMessage.success(t('clientDetail.sysRebooting'))
     } else {
@@ -1825,7 +1995,7 @@ const fetchFrpConfig = async () => {
   frpProtocol.value = 'websocket'
   frpTlsEnable.value = null
   try {
-    const resp = await sendClientCommand(client.value.key, { command: 'get_frp', payload: '' })
+    const resp = await sendCmd({ command: 'get_frp', payload: '' })
     if (resp.result === 'ok') {
       const data = JSON.parse(resp.output)
       const addr = typeof data.serverAddr === 'string' ? data.serverAddr : ''
@@ -1854,7 +2024,7 @@ const fetchFrpConfig = async () => {
 const fetchDefaultPassword = async () => {
   if (!client.value) return
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    const resp = await sendCmd({
       command: 'get_default_password',
       payload: '',
     })
@@ -1869,19 +2039,53 @@ const fetchDefaultPassword = async () => {
   }
 }
 
+// Query whether the device's root password already equals the common password.
+// Uses the same recompute-and-compare approach as the default-password check,
+// because the stored /etc/shadow hash differs per device (random salt).
+const fetchCommonPassword = async () => {
+  if (!client.value) return
+  try {
+    const resp = await sendCmd({
+      command: 'get_common_password',
+      payload: JSON.stringify({ password: commonRootPassword }),
+    })
+    if (resp.result === 'ok') {
+      const data = JSON.parse(resp.output)
+      commonPasswordOn.value = !!data.isCommon
+    }
+  } catch (error: any) {
+    // Non-fatal: leave the switch at its previous state.
+    console.warn('fetchCommonPassword failed:', error)
+  }
+}
+
 // Toggle the default-password switch.
 const onToggleDefaultPassword = async (val: boolean) => {
   if (!client.value) return
   defaultPasswordLoading.value = true
   try {
-    const resp = await sendClientCommand(client.value.key, {
+    // If the device is currently on the common password, pass it along so the
+    // backend can keep the default password permanently (no 10s auto-restore).
+    const payload: Record<string, any> = { enable: val }
+    if (val && commonPasswordOn.value) payload.common_password = commonRootPassword
+    const resp = await sendCmd({
       command: 'set_default_password',
-      payload: JSON.stringify({ enable: val }),
+      payload: JSON.stringify(payload),
     })
     if (resp.result === 'ok') {
       defaultPasswordOn.value = val
+      // Leaving the default password clears the common-password state.
+      if (!val) commonPasswordOn.value = false
       if (val) {
-        startDefaultPasswordCountdown()
+        // The backend only auto-restores when the previous password was unknown.
+        // When switching from the common password it keeps the default silently.
+        const keepAsDefault = resp.output.includes('不自动恢复')
+        if (keepAsDefault) {
+          commonPasswordOn.value = false
+          stopDefaultPasswordTimer()
+        } else {
+          startDefaultPasswordCountdown()
+        }
         ElMessage.success(resp.output || t('clientDetail.defaultPasswordEnabled'))
       } else {
         stopDefaultPasswordTimer()
@@ -1897,6 +2101,46 @@ const onToggleDefaultPassword = async (val: boolean) => {
   }
 }
 
+// The plaintext root password written when the "common password" switch is turned on.
+// NOTE: OpenWrt hashes the password locally with a random salt, so the stored
+// /etc/shadow line differs on every device — we can only send the plaintext and
+// let the client hash it with openssl. Replace the value below with the real
+// common password you want to use.
+const commonRootPassword = 'tk!@1234'
+
+// Toggle the common-password switch. Only meaningful while on the default password:
+// turning it on rewrites the root password to the fixed common plaintext.
+const onToggleCommonPassword = async (val: boolean) => {
+  if (!client.value) return
+  if (!defaultPasswordOn.value && val) return // locked unless currently on default password
+  commonPasswordLoading.value = true
+  commandResp.value = null
+  try {
+    const resp = await sendCmd({
+      command: 'modify_system',
+      payload: JSON.stringify({ root_password: commonRootPassword }),
+    })
+    commandResp.value = resp
+    if (resp.result === 'ok') {
+      commonPasswordOn.value = val
+      // Setting a new root password means the device is no longer on the default
+      // password, so clear the default-password state and stop its countdown.
+      defaultPasswordOn.value = false
+      stopDefaultPasswordTimer()
+      ElMessage.success(
+        val ? t('clientDetail.commonPasswordEnabled') : t('clientDetail.commonPasswordDisabled'),
+      )
+    } else {
+      ElMessage.error(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
+    }
+  } catch (error: any) {
+    commandResp.value = { command: 'modify_system', result: 'error', output: error.message }
+    ElMessage.error(t('clientDetail.commandFailed', { msg: error.message }))
+  } finally {
+    commonPasswordLoading.value = false
+  }
+}
+
 // 更新默认规则：客户端异步执行 rule_update.lua（不带第二个参数），
 // 这里发起任务后轮询 update_rules_status 直到结束，再输出结果。
 const passwallUpdateRules = async () => {
@@ -1904,7 +2148,7 @@ const passwallUpdateRules = async () => {
   ruleUpdateLoading.value = true
   ruleUpdateResp.value = null
   try {
-    const start = await sendClientCommand(client.value.key, {
+    const start = await sendCmd({
       command: 'update_rules',
       payload: '',
     })
@@ -1924,7 +2168,7 @@ const passwallUpdateRules = async () => {
       await new Promise((resolve) => setTimeout(resolve, 3000))
       let state: any
       try {
-        const resp = await sendClientCommand(client.value.key, {
+        const resp = await sendCmd({
           command: 'update_rules_status',
           payload: '',
         })
@@ -1995,13 +2239,29 @@ const sendCommand = async () => {
     payload = JSON.stringify(frpCfg)
   }
   try {
-    const resp = await sendClientCommand(client.value.key, {
-      command,
-      payload,
-    })
+    const resp = await sendCmd({ command, payload })
     commandResp.value = resp
     if (resp.result === 'ok') {
       ElMessage.success(t('clientDetail.commandSuccess'))
+      if (isFrpConfig.value) {
+        const userChanged = frpUser.value.trim() !== frpInitial.value.user.trim()
+        const addrChanged = frpServerAddrPort.value.trim() !== frpInitial.value.addrPort.trim()
+        const protoChanged = frpProtocol.value !== frpInitial.value.protocol
+        const tlsChanged = frpTlsEnable.value !== frpInitial.value.tlsEnable
+        if (userChanged && !addrChanged && !protoChanged && !tlsChanged) {
+          // Only the username changed: the client will restart and reconnect,
+          // but its clientID/runID (and therefore the route) stays the same.
+          // Show a "waiting for reconnect" transition and only refresh once the
+          // client reappears carrying the new username.
+          commandResp.value = null
+          waitForReconnect(routeId.value, frpUser.value.trim())
+          return
+        }
+        // Other frp settings changed: the client may go offline briefly. Show
+        // a countdown on the send button, then return to the client list.
+        startReturnCountdown()
+        return
+      }
     } else {
       ElMessage.error(t('clientDetail.commandFailed', { msg: resp.output || resp.result }))
     }
@@ -2036,6 +2296,7 @@ watch(proxySearch, () => {
 onUnmounted(() => {
   clearSearchDebounce()
   if (fwPollTimer !== null) { clearInterval(fwPollTimer); fwPollTimer = null }
+  if (returnTimer !== null) { clearInterval(returnTimer); returnTimer = null }
 })
 
 onMounted(async () => {
@@ -2233,7 +2494,6 @@ html.dark .status-badge.online {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .command-radio-group {
@@ -2815,17 +3075,14 @@ html.dark .system-toggle-item:hover {
 .fw-current-version {
   display: flex;
   align-items: baseline;
-  font-size: 13px;
+  font-size: 14px;
   padding: 6px 0 12px;
   color: var(--el-text-color-regular, #606266);
 }
 
 .fw-current-version .fw-info-label {
-  color: var(--el-text-color-secondary, #909399);
-}
-
-.fw-check-update {
-  padding-bottom: 4px;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .fw-info-row {
@@ -2853,10 +3110,6 @@ html.dark .system-toggle-item:hover {
   font-size: 12px;
   color: var(--text-secondary);
   margin-top: 8px;
-}
-
-.command-actions {
-  margin-bottom: 12px;
 }
 
 .command-result {
