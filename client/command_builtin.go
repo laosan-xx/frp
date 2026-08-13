@@ -110,6 +110,13 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 	}
 	payload = strings.TrimSpace(payload)
 
+	// Serialize against an in-flight speed test (testNode holds the same lock)
+	// and against node deletion. Concurrent uci writes to the passwall config
+	// while a test goroutine is generating its proxy would corrupt state, and
+	// a mid-test add can leave passwall stuck in a running/IP-loading state.
+	passwallStateMu.Lock()
+	defer passwallStateMu.Unlock()
+
 	node, err := parseShareLink(payload)
 	if err != nil {
 		return "error", fmt.Sprintf("解析链接失败: %v", err)
@@ -127,7 +134,15 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 	uciSet("passwall."+secName+".port", node.Port)
 
 	for k, v := range node.Extra {
-		uciSet("passwall."+secName+"."+k, v)
+		key := "passwall." + secName + "." + k
+		if strings.Contains(v, "\n") {
+			// Multi-line values (e.g. a TLS certificate PEM) cannot be passed
+			// safely as a single exec arg to `uci set`; route them through a
+			// shell so the newline is preserved literally in the uci store.
+			uciSetMultiline(key, v)
+		} else {
+			uciSet(key, v)
+		}
 	}
 
 	uciCommit("passwall")
@@ -138,7 +153,25 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 		return "error", fmt.Sprintf("错误: 节点创建失败 (section=%s, type=%s)", secName, verifyType)
 	}
 
-	return "ok", fmt.Sprintf("已添加节点: %s (%s %s | %s:%s)", node.Remarks, node.Type, node.Protocol, node.Address, node.Port)
+	// For protocols whose UCI field names must exactly match the running
+	// passwall version (hysteria2/sing-box especially), echo back what we
+	// actually wrote so mismatches are visible instead of silently dropped.
+	var diag string
+	if node.Protocol == "hysteria2" {
+		diag = "\n[诊断] 实际写入的 UCI 字段:\n" + uciShowSection("passwall." + secName)
+	}
+
+	return "ok", fmt.Sprintf("已添加节点: %s (%s %s | %s:%s)", node.Remarks, node.Type, node.Protocol, node.Address, node.Port) + diag
+}
+
+// uciShowSection returns the raw `uci show <key>` output for a section/option,
+// used to make what we wrote to uci transparent for debugging.
+func uciShowSection(key string) string {
+	out, err := runCommand("uci", "-q", "show", key)
+	if err != nil {
+		return "(无法读取: " + err.Error() + ")"
+	}
+	return strings.TrimSpace(out)
 }
 
 // nodeInfo represents a single passwall node for JSON output.
@@ -313,6 +346,12 @@ func (e *builtinCommandExecutor) cmdDelNode(payload string) (string, string) {
 		return "error", fmt.Sprintf("错误: 找不到节点 '%s'", payload)
 	}
 
+	// Serialize against an in-flight speed test (testNode holds the same lock
+	// for its whole duration). This guarantees we don't delete a node's uci
+	// section while a test goroutine is still reading it / running its proxy.
+	passwallStateMu.Lock()
+	defer passwallStateMu.Unlock()
+
 	var sb strings.Builder
 
 	// Check if the node is currently in use
@@ -326,6 +365,13 @@ func (e *builtinCommandExecutor) cmdDelNode(payload string) (string, string) {
 		uciSet("passwall.@global[0].tcp_node", "")
 		_, _ = runCommand("/etc/init.d/passwall", "stop")
 	}
+
+	// Kill any in-flight speed-test proxy launched for this node. testNode()
+	// starts a standalone run_socks proxy (flag url_test_<secID>) that is torn
+	// down by the test goroutine's defer cleanup — but if the user deletes the
+	// node mid-test, that goroutine may still be running or may read a now-gone
+	// section, leaving the proxy (and the UI "running"/IP-loading state) stuck.
+	cleanupProxyByFlag("url_test_" + target)
 
 	// Delete the node section
 	uciDelete("passwall." + target)
@@ -345,6 +391,12 @@ func (e *builtinCommandExecutor) cmdDelNode(payload string) (string, string) {
 
 // cmdDisablePasswall stops passwall and sets enabled=0.
 func (e *builtinCommandExecutor) cmdDisablePasswall() (string, string) {
+	// Serialize against an in-flight speed test / node add / delete. Stopping
+	// passwall while a test proxy is running would orphan that proxy and leave
+	// the UI stuck in a running/IP-loading state.
+	passwallStateMu.Lock()
+	defer passwallStateMu.Unlock()
+
 	uciSet("passwall.@global[0].enabled", "0")
 	// 关键修复：停用时一并清空 TCP 节点选择。否则 tcp_node 仍指向刚停用的节点，
 	// passwall 进入 “Not set” 损坏态，后续所有 url_test_node 都会失败，
@@ -517,6 +569,13 @@ func (e *builtinCommandExecutor) testNode(payload string, skipIP bool) (string, 
 	if secID == "" {
 		return "error", fmt.Sprintf("错误: 找不到节点 '%s'", remarks)
 	}
+
+	// Serialize against node deletion / passwall stop so a mid-test delete can't
+	// race with this speed test (which launches a standalone run_socks proxy and
+	// may read this section repeatedly). Holding the lock for the whole test keeps
+	// the running state consistent and lets the delete cleanly tear down any proxy.
+	passwallStateMu.Lock()
+	defer passwallStateMu.Unlock()
 
 	nodeType := strings.ToLower(strings.TrimSpace(uciGet(fmt.Sprintf("passwall.%s.type", secID))))
 
@@ -838,6 +897,13 @@ func getFreePort() (int, error) {
 	defer listener.Close()
 	return listener.Addr().(*net.TCPAddr).Port, nil
 }
+
+// passwallStateMu guards operations that change passwall's running state or
+// delete a node (cmdDelNode / cmdDisablePasswall) against a concurrently running
+// speed test (testNode). Without it, deleting the in-use node mid-test can race
+// with testNode's run_socks proxy and leave passwall stuck in a "running"/IP-loading
+// state with an orphaned proxy process.
+var passwallStateMu sync.Mutex
 
 // tempProxyMu serializes the temporary-proxy port reservation handshake so that
 // two concurrent url_test_node clicks cannot grab the same local port (the
@@ -2417,6 +2483,8 @@ func parseShareLink(link string) (*parsedNode, error) {
 		return parseVlessLink(link)
 	case strings.HasPrefix(link, "trojan://"):
 		return parseTrojanLink(link)
+	case strings.HasPrefix(link, "hysteria2://"):
+		return parseHysteria2Link(link)
 	default:
 		// The link is missing a protocol scheme. Some copy/paste or OCR tools
 		// truncate the leading "vless://<uuid>@<host>:<port>" part, leaving only
@@ -2931,6 +2999,133 @@ func parseTrojanLink(link string) (*parsedNode, error) {
 	}, nil
 }
 
+// parseHysteria2Link parses hysteria2:// links into a sing-box hysteria2 node
+// for luci-app-passwall. Format:
+//
+//	hysteria2://<password>@<host>:<port>?sni=<sni>&insecure=<0|1>&allowInsecure=<0|1>&pinSHA256=<hex>#<remarks>
+//
+// Both "insecure" and "allowInsecure" are treated as the passwall
+// "hysteria2_insecure" flag (skip TLS certificate verification).
+func parseHysteria2Link(link string) (*parsedNode, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return nil, fmt.Errorf("解析hysteria2链接失败: %v", err)
+	}
+	if u.User == nil {
+		return nil, fmt.Errorf("hysteria2链接缺少密码 (格式: hysteria2://<password>@<host>:<port>)")
+	}
+	password := u.User.Username()
+
+	remarks := u.Fragment
+	if remarks == "" {
+		remarks = u.Hostname()
+	}
+	remarks, _ = url.QueryUnescape(remarks)
+
+	q := u.Query()
+	// Field names must match the passwall version running on the router
+	// (the one used by the LuCI web UI). We only emit the keys it recognizes
+	// to keep the uci config clean — no duplicate aliases.
+	extra := map[string]string{
+		"hysteria2_auth_password": password,
+	}
+	if sni := q.Get("sni"); sni != "" {
+		extra["tls_serverName"] = sni
+	}
+	// "peer" (Shadowrocket) is the masquerade/authority domain used for TLS
+	// SNI spoofing. Fall back to it as tls_serverName when no explicit sni.
+	if peer := q.Get("peer"); peer != "" {
+		if _, ok := extra["tls_serverName"]; !ok {
+			extra["tls_serverName"] = peer
+		}
+	}
+	// uTLS fingerprint (Shadowrocket "fingerprint", e.g. chrome). passwall
+	// stores it as tls_fingerprint.
+	if fp := q.Get("fingerprint"); fp != "" {
+		extra["tls_fingerprint"] = fp
+	}
+	// "insecure" and "allowInsecure" both mean skip certificate verification.
+	insecure := q.Get("insecure")
+	if insecure == "" {
+		insecure = q.Get("allowInsecure")
+	}
+	if insecure == "1" || insecure == "true" {
+		extra["tls_allowInsecure"] = "1"
+	}
+	if pin := q.Get("pinSHA256"); pin != "" {
+		extra["tls_pinSHA256"] = pin
+	}
+
+	// Optional, commonly-seen extra params carried by some share formats.
+	if obfs := q.Get("obfs"); obfs != "" {
+		extra["hysteria2_obfs"] = obfs
+		if obfsPassword := q.Get("obfs-password"); obfsPassword != "" {
+			extra["hysteria2_obfs_password"] = obfsPassword
+		}
+	}
+	if up := q.Get("upmbps"); up != "" {
+		extra["hysteria2_up_mbps"] = up
+	}
+	if down := q.Get("downmbps"); down != "" {
+		extra["hysteria2_down_mbps"] = down
+	}
+	if alpn := q.Get("alpn"); alpn != "" {
+		extra["hysteria2_alpn"] = alpn
+	}
+	// hop interval (port-hopping): passwall uses hysteria2_hop_interval.
+	if hop := q.Get("hopinterval"); hop != "" {
+		extra["hysteria2_hop_interval"] = hop
+	}
+	// Port-hopping range (e.g. "1000:1200,1300-1400,1500").
+	if hopRange := q.Get("hop"); hopRange != "" {
+		extra["hysteria2_hop"] = hopRange
+	}
+	// idle timeout / keep-alive period (seconds)
+	if it := q.Get("idletimeout"); it != "" {
+		extra["hysteria2_idle_timeout"] = it
+	}
+	if ka := q.Get("keepalive"); ka != "" {
+		extra["hysteria2_keep_alive_period"] = ka
+	}
+	// Custom TLS certificate (pem) — passwall uses tls_certificate + tls_certificate_pem.
+	if cert := q.Get("certificate"); cert != "" {
+		// "1" means use the provided pem; non-empty pem means enable it.
+		extra["tls_certificate"] = "1"
+		extra["tls_certificate_pem"] = cert
+	}
+	// ECH (Encrypted Client Hello) support.
+	if ech := q.Get("ech"); ech != "" {
+		extra["ech"] = ech
+		if echConfig := q.Get("echconfig"); echConfig != "" {
+			extra["ech_config"] = echConfig
+		}
+		if echSNI := q.Get("echqueryservername"); echSNI != "" {
+			extra["ech_query_server_name"] = echSNI
+		}
+	}
+	// per-node timeout (seconds)
+	if to := q.Get("timeout"); to != "" {
+		extra["timeout"] = to
+	}
+	// Mark the node as manually added, matching what the passwall LuCI page
+	// sets when you add a node through its web UI (add_mode=1).
+	extra["add_mode"] = "1"
+
+	addr := u.Hostname()
+	if addr == "" {
+		return nil, fmt.Errorf("hysteria2链接缺少服务器地址")
+	}
+
+	return &parsedNode{
+		Remarks:  remarks,
+		Type:     "sing-box",
+		Protocol: "hysteria2",
+		Address:  addr,
+		Port:     u.Port(),
+		Extra:    extra,
+	}, nil
+}
+
 // ============================================================
 // uci helper functions
 // ============================================================
@@ -2951,6 +3146,16 @@ func uciGet(key string) string {
 
 func uciSet(key, value string) {
 	_, _ = runCommand("uci", "-q", "set", key+"="+value)
+}
+
+// uciSetMultiline writes a value that may contain newlines (e.g. a TLS
+// certificate PEM) via a shell so the literal newlines are preserved in the
+// uci store. Plain uciSet cannot pass multi-line values as a single exec arg.
+// Only used on the router (Linux/OpenWrt); values with newlines never occur
+// on other platforms.
+func uciSetMultiline(key, value string) {
+	script := "uci set " + key + "=$'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+	_, _ = runCommand("sh", "-c", script)
 }
 
 func uciDelete(key string) {
@@ -3116,6 +3321,8 @@ func buildShareLink(opts map[string]string) string {
 		return buildVLESSLink(opts, remarks)
 	case "trojan":
 		return buildTrojanLink(opts, remarks)
+	case "hysteria2":
+		return buildHysteria2Link(opts, remarks)
 	default:
 		return ""
 	}
@@ -3336,6 +3543,58 @@ func buildTrojanLink(opts map[string]string, remarks string) string {
 	}
 
 	return "trojan://" + url.QueryEscape(password) + "@" + add + ":" + port +
+		"?" + buildQuery(query) + "#" + url.QueryEscape(remarks)
+}
+
+// buildHysteria2Link reconstructs a hysteria2 share link from a passwall node's
+// uci options. The option keys mirror what parseHysteria2Link writes on import
+// (hysteria2_auth_password, tls_serverName, tls_allowInsecure, tls_pinSHA256, …),
+// so the exported link round-trips faithfully back through parseShareLink.
+func buildHysteria2Link(opts map[string]string, remarks string) string {
+	add := optOr(opts, "address", "")
+	port := optOr(opts, "port", "")
+	password := optOr(opts, "hysteria2_auth_password", optOr(opts, "hysteria2_password", optOr(opts, "password", "")))
+	if add == "" || port == "" || password == "" {
+		return ""
+	}
+
+	query := map[string]string{}
+	if sni := optOr(opts, "tls_serverName", ""); sni != "" {
+		query["sni"] = sni
+	}
+	// "tls_allowInsecure" is the key we write on import; also accept legacy names.
+	if optOr(opts, "tls_allowInsecure", optOr(opts, "allowInsecure", optOr(opts, "hysteria2_insecure", "0"))) == "1" {
+		query["insecure"] = "1"
+	}
+	if pin := optOr(opts, "tls_pinSHA256", optOr(opts, "pinSHA256", "")); pin != "" {
+		query["pinSHA256"] = pin
+	}
+	if alpn := optOr(opts, "hysteria2_alpn", ""); alpn != "" {
+		query["alpn"] = alpn
+	}
+	if up := optOr(opts, "hysteria2_up_mbps", ""); up != "" {
+		query["upmbps"] = up
+	}
+	if down := optOr(opts, "hysteria2_down_mbps", ""); down != "" {
+		query["downmbps"] = down
+	}
+	if hop := optOr(opts, "hysteria2_hop", ""); hop != "" {
+		query["hop"] = hop
+	}
+	if hi := optOr(opts, "hysteria2_hop_interval", ""); hi != "" {
+		query["hopinterval"] = hi
+	}
+	if obfs := optOr(opts, "hysteria2_obfs", ""); obfs != "" {
+		query["obfs"] = obfs
+		if op := optOr(opts, "hysteria2_obfs_password", ""); op != "" {
+			query["obfs-password"] = op
+		}
+	}
+	if fp := optOr(opts, "tls_fingerprint", ""); fp != "" {
+		query["fingerprint"] = fp
+	}
+
+	return "hysteria2://" + url.QueryEscape(password) + "@" + add + ":" + port +
 		"?" + buildQuery(query) + "#" + url.QueryEscape(remarks)
 }
 
