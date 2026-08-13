@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 
 	httppkg "github.com/laosan-xx/frp/pkg/util/http"
@@ -163,6 +164,13 @@ func (svr *Service) apiLogout(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// captchaPalette are the character colors used for the captcha text.
+var captchaPalette = []string{
+	"#3b82f6", "#06b6d4", "#ef4444", "#f59e0b",
+	"#10b981", "#8b5cf6", "#ec4899", "#0ea5e9",
+}
+
+// apiCaptcha generates a 4-digit captcha and returns it as a styled SVG.
 func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
 	id, _ := util.RandID()
 	// Generate 4-digit captcha code
@@ -171,11 +179,71 @@ func (svr *Service) apiCaptcha(w http.ResponseWriter, _ *http.Request) {
 	captchaStore.m[id] = code
 	captchaStore.Unlock()
 
-	svg := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"40\">" +
-		"<rect width=\"80\" height=\"40\" fill=\"#f2f2f2\"/>" +
-		"<text x=\"18\" y=\"27\" font-size=\"20\" fill=\"#333\">" + code + "</text></svg>"
+	svg := buildCaptchaSVG(code)
 	resp := map[string]string{"id": id, "svg": svg}
 	buf, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(buf)
+}
+
+// buildCaptchaSVG renders a 4-character captcha as a polished, themed SVG
+// with a soft gradient background, per-character colors, slight rotations
+// and random interference lines/dots for better readability and security.
+func buildCaptchaSVG(code string) string {
+	const (
+		w      = 86
+		h      = 40
+		startX = 13
+		stepX  = 18
+	)
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf(
+		"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\">",
+		w, h, w, h,
+	))
+	// Soft gradient background
+	b.WriteString("<defs><linearGradient id=\"bg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">")
+	b.WriteString("<stop offset=\"0%\" stop-color=\"#eef4ff\"/>")
+	b.WriteString("<stop offset=\"100%\" stop-color=\"#e0f7fa\"/>")
+	b.WriteString("</linearGradient></defs>")
+	b.WriteString(fmt.Sprintf("<rect width=\"%d\" height=\"%d\" rx=\"8\" fill=\"url(#bg)\"/>", w, h))
+
+	// Interference lines
+	for i := 0; i < 3; i++ {
+		x1 := rand.Intn(w)
+		y1 := rand.Intn(h)
+		x2 := rand.Intn(w)
+		y2 := rand.Intn(h)
+		color := captchaPalette[rand.Intn(len(captchaPalette))]
+		b.WriteString(fmt.Sprintf(
+			"<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\" stroke-opacity=\"0.35\"/>",
+			x1, y1, x2, y2, color,
+		))
+	}
+
+	// Interference dots
+	for i := 0; i < 18; i++ {
+		cx := rand.Intn(w)
+		cy := rand.Intn(h)
+		cr := rand.Intn(2) + 1
+		color := captchaPalette[rand.Intn(len(captchaPalette))]
+		b.WriteString(fmt.Sprintf(
+			"<circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"%s\" fill-opacity=\"0.3\"/>",
+			cx, cy, cr, color,
+		))
+	}
+
+	// Characters with slight rotation and individual colors
+	for i, ch := range code {
+		x := startX + i*stepX
+		y := 29
+		rot := rand.Intn(30) - 15
+		color := captchaPalette[rand.Intn(len(captchaPalette))]
+		b.WriteString(fmt.Sprintf(
+			"<text x=\"%d\" y=\"%d\" font-family=\"'Courier New',monospace\" font-size=\"24\" font-weight=\"700\" fill=\"%s\" transform=\"rotate(%d %d %d)\">%c</text>",
+			x, y, color, rot, x, y, ch,
+		))
+	}
+	b.WriteString("</svg>")
+	return b.String()
 }

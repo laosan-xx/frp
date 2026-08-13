@@ -407,17 +407,36 @@ onMounted(() => {
 }
 
 .captcha-box {
-  width: 80px;
+  position: relative;
+  width: 86px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 1px solid var(--header-border, #e4e7ed);
   cursor: pointer;
   flex-shrink: 0;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.captcha-box:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.18);
+}
+
+.captcha-box:active {
+  transform: scale(0.97);
+}
+
+.captcha-box :deep(svg) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Mobile: light, card-less native login page (no floating card) */
@@ -439,7 +458,6 @@ onMounted(() => {
 
   /* Restore the card to its light, borderless mobile form */
   .login-card {
-    display: block;
     flex: none;
     max-width: none;
     margin: 0;
@@ -573,10 +591,6 @@ onMounted(() => {
 
   .login-card :deep(.el-input__inner) {
     color: var(--text-primary, #303133);
-  }
-
-  .captcha-box {
-    background: var(--color-bg-input, #fff);
   }
 
   .submit-btn {
