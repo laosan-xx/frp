@@ -310,14 +310,11 @@ const clearOfflineProxies = async () => {
 }
 
 const sanitizeClientQuery = () => {
-  const hasClientQuery =
-    Object.prototype.hasOwnProperty.call(route.query, 'clientID') ||
-    Object.prototype.hasOwnProperty.call(route.query, 'user')
+  const hasClientQuery = Object.prototype.hasOwnProperty.call(route.query, 'clientID')
   if (!hasClientQuery) return
 
   const query = { ...route.query }
   delete query.clientID
-  delete query.user
   router.replace({ query })
 }
 

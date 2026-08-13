@@ -309,15 +309,9 @@ func TestAPIV2ClientListEnvelopePaginationAndFilters(t *testing.T) {
 		t.Fatalf("first sorted user mismatch, want empty got %q", got)
 	}
 
-	resp = performRequest(router, "/api/v2/clients?user=&page=1&pageSize=50")
-	emptyUserResp := decodeResponse[v2EnvelopeForTest[model.V2PageResp[model.ClientInfoResp]]](t, resp)
-	if emptyUserResp.Data.Total != 1 || emptyUserResp.Data.Items[0].User != "" {
-		t.Fatalf("empty user filter mismatch: %#v", emptyUserResp.Data)
-	}
-
-	resp = performRequest(router, "/api/v2/clients?user=alice&status=online&q=alice-host")
+	resp = performRequest(router, "/api/v2/clients?clientID=client-a&status=online&q=alice-host")
 	aliceResp := decodeResponse[v2EnvelopeForTest[model.V2PageResp[model.ClientInfoResp]]](t, resp)
-	if aliceResp.Data.Total != 1 || aliceResp.Data.Items[0].User != "alice" {
+	if aliceResp.Data.Total != 1 || aliceResp.Data.Items[0].ClientID != "client-a" {
 		t.Fatalf("alice filter mismatch: %#v", aliceResp.Data)
 	}
 
@@ -418,7 +412,7 @@ func TestAPIV2ProxyListDetailAndUsers(t *testing.T) {
 		t.Fatalf("invalid proxy type error envelope mismatch: %#v", errResp)
 	}
 
-	resp = performRequest(router, "/api/v2/proxies?type=tcp&user=&page=1&pageSize=50")
+	resp = performRequest(router, "/api/v2/proxies?type=tcp&clientID=legacy-client&page=1&pageSize=50")
 	proxyResp := decodeResponse[v2EnvelopeForTest[model.V2PageResp[model.V2ProxyResp]]](t, resp)
 	if proxyResp.Data.Total != 1 {
 		t.Fatalf("proxy filter total mismatch: %#v", proxyResp.Data)
@@ -428,7 +422,7 @@ func TestAPIV2ProxyListDetailAndUsers(t *testing.T) {
 		t.Fatalf("proxy item mismatch: %#v", proxyItem)
 	}
 	rawProxyResp := decodeResponse[v2EnvelopeForTest[model.V2PageResp[map[string]json.RawMessage]]](t, resp)
-	assertRawJSONKeys(t, rawProxyResp.Data.Items[0], "clientID", "name", "spec", "status", "user")
+	assertRawJSONKeys(t, rawProxyResp.Data.Items[0], "id", "clientID", "name", "spec", "status", "user")
 	var rawListSpec map[string]json.RawMessage
 	if err := json.Unmarshal(rawProxyResp.Data.Items[0]["spec"], &rawListSpec); err != nil {
 		t.Fatalf("unmarshal list proxy spec failed: %v", err)
@@ -450,7 +444,7 @@ func TestAPIV2ProxyListDetailAndUsers(t *testing.T) {
 	if proxyDetailResp.Data.Name != "tcp-alice" || proxyDetailResp.Data.User != "alice" {
 		t.Fatalf("proxy detail mismatch: %#v", proxyDetailResp.Data)
 	}
-	assertRawJSONKeys(t, rawProxyDetailResp.Data, "clientID", "name", "spec", "status", "user")
+	assertRawJSONKeys(t, rawProxyDetailResp.Data, "id", "clientID", "name", "spec", "status", "user")
 	var rawDetailSpec map[string]json.RawMessage
 	if err := json.Unmarshal(rawProxyDetailResp.Data["spec"], &rawDetailSpec); err != nil {
 		t.Fatalf("unmarshal detail proxy spec failed: %v", err)
@@ -482,7 +476,7 @@ func TestAPIV2ProxyTrafficEnvelopeSchemaAndHistory(t *testing.T) {
 	oldStatsCollector := mem.StatsCollector
 	mem.StatsCollector = &fakeStatsCollector{
 		proxies: map[string]*mem.ProxyStats{
-			"ssh": {Name: "ssh", Type: "tcp"},
+			"ssh": {Name: "ssh", ProxyID: "ssh", Type: "tcp"},
 		},
 		traffic: map[string]*mem.ProxyTrafficInfo{
 			"ssh": {
@@ -599,7 +593,7 @@ func TestAPIV2ProxyTrafficInvalidEncodedNameUses400Envelope(t *testing.T) {
 	controller := newV2TestController(t)
 	handler := httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyTraffic)
 	req := httptest.NewRequest(http.MethodGet, "/api/v2/proxies/%25ZZ/traffic", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "%ZZ"})
+	req = mux.SetURLVars(req, map[string]string{"id": "%ZZ"})
 	resp := httptest.NewRecorder()
 	handler.ServeHTTP(resp, req)
 
@@ -787,6 +781,7 @@ func newV2TestController(t *testing.T) *Controller {
 		proxies: map[string]*mem.ProxyStats{
 			"tcp-empty": {
 				Name:            "tcp-empty",
+				ProxyID:         "tcp-empty",
 				Type:            "tcp",
 				User:            "",
 				ClientID:        "legacy-client",
@@ -796,6 +791,7 @@ func newV2TestController(t *testing.T) *Controller {
 			},
 			"tcp-alice": {
 				Name:            "tcp-alice",
+				ProxyID:         "tcp-alice",
 				Type:            "tcp",
 				User:            "alice",
 				ClientID:        "client-a",
@@ -809,6 +805,7 @@ func newV2TestController(t *testing.T) *Controller {
 			},
 			"http-alice": {
 				Name:     "http-alice",
+				ProxyID:  "http-alice",
 				Type:     "http",
 				User:     "alice",
 				ClientID: "client-a",
@@ -816,6 +813,7 @@ func newV2TestController(t *testing.T) *Controller {
 			},
 			"udp-bob": {
 				Name:     "udp-bob",
+				ProxyID:  "udp-bob",
 				Type:     "udp",
 				User:     "bob",
 				ClientID: "client-b",

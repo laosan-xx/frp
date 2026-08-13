@@ -28,7 +28,6 @@ export interface ClientListV2Params {
   pageSize?: number
   status?: 'all' | 'online' | 'offline'
   q?: string
-  user?: string
   clientID?: string
   runID?: string
 }

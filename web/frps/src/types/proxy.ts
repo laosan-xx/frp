@@ -23,7 +23,6 @@ export interface ProxyListV2Params {
   status?: 'all' | 'online' | 'offline'
   q?: string
   type?: string
-  user?: string
   clientID?: string
 }
 

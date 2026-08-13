@@ -16,12 +16,17 @@ func TestServerMetricsUsesClockForProxyTimestamps(t *testing.T) {
 	metrics := newServerMetricsWithClock(clk)
 
 	metrics.NewProxy("proxy", "tcp", "user", "client-id")
-	require.Equal(start, metrics.info.ProxyStatistics["proxy"].LastStartTime)
+	var ps *ProxyStatistics
+	for _, s := range metrics.info.ProxyStatistics {
+		ps = s
+	}
+	require.NotNil(ps)
+	require.Equal(start, ps.LastStartTime)
 
 	closedAt := start.Add(time.Minute)
 	clk.SetTime(closedAt)
-	metrics.CloseProxy("proxy", "tcp")
-	require.Equal(closedAt, metrics.info.ProxyStatistics["proxy"].LastCloseTime)
+	metrics.CloseProxy(ps.ProxyID, "tcp")
+	require.Equal(closedAt, ps.LastCloseTime)
 
 	stats := metrics.GetProxyByName("proxy")
 	require.Equal(start.Format("01-02 15:04:05"), stats.LastStartTime)

@@ -1570,7 +1570,6 @@ const fetchProxies = async () => {
       pageSize: pageSize.value,
       q: q || undefined,
       clientID: client.value.clientID,
-      user: client.value.user,
     })
     if (seq !== requestSeq) return
 

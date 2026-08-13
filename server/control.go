@@ -719,7 +719,7 @@ func (ctl *Control) loginUserInfo() plugin.UserInfo {
 func (ctl *Control) closeProxy(pxy proxy.Proxy) {
 	pxy.Close()
 	ctl.sessionCtx.PxyManager.Del(pxy.GetProxyID())
-	ctl.serverMetrics.CloseProxy(pxy.GetName(), pxy.GetConfigurer().GetBaseConfig().Type)
+	ctl.serverMetrics.CloseProxy(pxy.GetProxyID(), pxy.GetConfigurer().GetBaseConfig().Type)
 
 	notifyContent := &plugin.CloseProxyContent{
 		User: ctl.loginUserInfo(),

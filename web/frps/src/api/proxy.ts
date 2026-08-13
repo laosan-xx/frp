@@ -31,7 +31,6 @@ export const getProxiesV2 = async (params: ProxyListV2Params = {}) => {
         params.status && params.status !== 'all' ? params.status : undefined,
       q: params.q || undefined,
       type: params.type || undefined,
-      user: params.user,
       clientID: params.clientID || undefined,
     })}`,
   )

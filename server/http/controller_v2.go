@@ -173,7 +173,6 @@ func (c *Controller) APIV2ClientList(ctx *httppkg.Context) (any, error) {
 		return nil, err
 	}
 
-	userFilter, filterByUser := queryValue(ctx, "user")
 	clientIDFilter := ctx.Query("clientID")
 	runIDFilter := ctx.Query("runID")
 	q := strings.ToLower(ctx.Query("q"))
@@ -181,9 +180,6 @@ func (c *Controller) APIV2ClientList(ctx *httppkg.Context) (any, error) {
 	records := c.clientRegistry.List()
 	items := make([]model.ClientInfoResp, 0, len(records))
 	for _, info := range records {
-		if filterByUser && info.User != userFilter {
-			continue
-		}
 		if clientIDFilter != "" && info.ClientID() != clientIDFilter {
 			continue
 		}
@@ -519,7 +515,6 @@ func (c *Controller) APIV2ProxyList(ctx *httppkg.Context) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	userFilter, filterByUser := queryValue(ctx, "user")
 	clientIDFilter := ctx.Query("clientID")
 	q := strings.ToLower(ctx.Query("q"))
 
@@ -527,9 +522,6 @@ func (c *Controller) APIV2ProxyList(ctx *httppkg.Context) (any, error) {
 	items := make([]model.V2ProxyResp, 0, len(stats))
 	for _, ps := range stats {
 		resp := c.buildV2ProxyResp(ps)
-		if filterByUser && resp.User != userFilter {
-			continue
-		}
 		if clientIDFilter != "" && resp.ClientID != clientIDFilter {
 			continue
 		}
@@ -568,7 +560,7 @@ func (c *Controller) APIV2ProxyDetail(ctx *httppkg.Context) (any, error) {
 
 // /api/v2/proxies/{name}/traffic
 func (c *Controller) APIV2ProxyTraffic(ctx *httppkg.Context) (any, error) {
-	id, err := decodeV2PathParam(ctx, "id", "proxy id")
+	id, err := decodeV2PathParam(ctx, "id", "proxy name")
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +570,7 @@ func (c *Controller) APIV2ProxyTraffic(ctx *httppkg.Context) (any, error) {
 		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
 	}
 
-	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(ps.Name)
+	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(id)
 	if proxyTrafficInfo == nil {
 		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
 	}
@@ -589,7 +581,7 @@ func (c *Controller) APIV2ProxyTraffic(ctx *httppkg.Context) (any, error) {
 func decodeV2PathParam(ctx *httppkg.Context, key string, label string) (string, error) {
 	raw := ctx.Param(key)
 	if raw == "" {
-		return "", fmt.Errorf("missing %s", label)
+		return "", httppkg.NewError(http.StatusBadRequest, fmt.Sprintf("missing %s", label))
 	}
 	decoded, err := url.PathUnescape(raw)
 	if err != nil {
@@ -699,17 +691,6 @@ func paginateV2Items[T any](items []T, page, pageSize int) []T {
 	}
 	end := min(start+pageSize, len(items))
 	return items[start:end]
-}
-
-func queryValue(ctx *httppkg.Context, key string) (string, bool) {
-	values, ok := ctx.Req.URL.Query()[key]
-	if !ok {
-		return "", false
-	}
-	if len(values) == 0 {
-		return "", true
-	}
-	return values[0], true
 }
 
 func matchV2ClientQuery(item model.ClientInfoResp, q string) bool {
@@ -831,7 +812,7 @@ func (c *Controller) buildV2ProxyResp(ps *mem.ProxyStats) model.V2ProxyResp {
 	state := "offline"
 	var cfg v1.ProxyConfigurer
 	if c.pxyManager != nil {
-		if pxy, ok := c.pxyManager.GetByName(ps.Name); ok {
+		if pxy, ok := c.pxyManager.GetByID(ps.ProxyID); ok {
 			state = "online"
 			cfg = pxy.GetConfigurer()
 		}

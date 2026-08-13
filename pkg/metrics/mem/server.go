@@ -129,6 +129,7 @@ func (m *serverMetrics) CloseClient() {
 func (m *serverMetrics) NewProxy(name string, proxyType string, user string, clientID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	proxyID := util.GenProxyID(clientID, name)
 	counter, ok := m.info.ProxyTypeCounts[proxyType]
 	if !ok {
 		counter = metric.NewCounter()
@@ -136,7 +137,7 @@ func (m *serverMetrics) NewProxy(name string, proxyType string, user string, cli
 	counter.Inc(1)
 	m.info.ProxyTypeCounts[proxyType] = counter
 
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if !ok || proxyStats.ProxyType != proxyType {
 		proxyStats = &ProxyStatistics{
 			Name:       name,
@@ -145,66 +146,66 @@ func (m *serverMetrics) NewProxy(name string, proxyType string, user string, cli
 			TrafficIn:  metric.NewDateCounter(ReserveDays),
 			TrafficOut: metric.NewDateCounter(ReserveDays),
 		}
-		m.info.ProxyStatistics[name] = proxyStats
+		m.info.ProxyStatistics[proxyID] = proxyStats
 	}
 	proxyStats.User = user
 	proxyStats.ClientID = clientID
-	proxyStats.ProxyID = util.GenProxyID(clientID, name)
+	proxyStats.ProxyID = proxyID
 	proxyStats.LastStartTime = m.clock.Now()
 }
 
-func (m *serverMetrics) CloseProxy(name string, proxyType string) {
+func (m *serverMetrics) CloseProxy(proxyID string, proxyType string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if counter, ok := m.info.ProxyTypeCounts[proxyType]; ok {
 		counter.Dec(1)
 	}
-	if proxyStats, ok := m.info.ProxyStatistics[name]; ok {
+	if proxyStats, ok := m.info.ProxyStatistics[proxyID]; ok {
 		proxyStats.LastCloseTime = m.clock.Now()
 	}
 }
 
-func (m *serverMetrics) OpenConnection(name string, _ string) {
+func (m *serverMetrics) OpenConnection(proxyID string, _ string) {
 	m.info.CurConns.Inc(1)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if ok {
 		proxyStats.CurConns.Inc(1)
 	}
 }
 
-func (m *serverMetrics) CloseConnection(name string, _ string) {
+func (m *serverMetrics) CloseConnection(proxyID string, _ string) {
 	m.info.CurConns.Dec(1)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if ok {
 		proxyStats.CurConns.Dec(1)
 	}
 }
 
-func (m *serverMetrics) AddTrafficIn(name string, _ string, trafficBytes int64) {
+func (m *serverMetrics) AddTrafficIn(proxyID string, _ string, trafficBytes int64) {
 	m.info.TotalTrafficIn.Inc(trafficBytes)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if ok {
 		proxyStats.TrafficIn.Inc(trafficBytes)
 	}
 }
 
-func (m *serverMetrics) AddTrafficOut(name string, _ string, trafficBytes int64) {
+func (m *serverMetrics) AddTrafficOut(proxyID string, _ string, trafficBytes int64) {
 	m.info.TotalTrafficOut.Inc(trafficBytes)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if ok {
 		proxyStats.TrafficOut.Inc(trafficBytes)
 	}
@@ -255,11 +256,11 @@ func (m *serverMetrics) GetProxiesByType(proxyType string) []*ProxyStats {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for name, proxyStats := range m.info.ProxyStatistics {
+	for _, proxyStats := range m.info.ProxyStatistics {
 		if proxyStats.ProxyType != proxyType {
 			continue
 		}
-		res = append(res, toProxyStats(name, proxyStats))
+		res = append(res, toProxyStats(proxyStats.Name, proxyStats))
 	}
 	return res
 }
@@ -268,9 +269,11 @@ func (m *serverMetrics) GetProxiesByTypeAndName(proxyType string, proxyName stri
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	proxyStats, ok := m.info.ProxyStatistics[proxyName]
-	if ok && proxyStats.ProxyType == proxyType {
-		res = toProxyStats(proxyName, proxyStats)
+	for _, proxyStats := range m.info.ProxyStatistics {
+		if proxyStats.Name == proxyName && proxyStats.ProxyType == proxyType {
+			res = toProxyStats(proxyStats.Name, proxyStats)
+			break
+		}
 	}
 	return res
 }
@@ -279,9 +282,11 @@ func (m *serverMetrics) GetProxyByName(proxyName string) (res *ProxyStats) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	proxyStats, ok := m.info.ProxyStatistics[proxyName]
-	if ok {
-		res = toProxyStats(proxyName, proxyStats)
+	for _, proxyStats := range m.info.ProxyStatistics {
+		if proxyStats.Name == proxyName {
+			res = toProxyStats(proxyStats.Name, proxyStats)
+			break
+		}
 	}
 	return res
 }
@@ -290,23 +295,23 @@ func (m *serverMetrics) GetProxyByID(proxyID string) (res *ProxyStats) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for name, proxyStats := range m.info.ProxyStatistics {
+	for _, proxyStats := range m.info.ProxyStatistics {
 		if proxyStats.ProxyID == proxyID {
-			res = toProxyStats(name, proxyStats)
+			res = toProxyStats(proxyStats.Name, proxyStats)
 			break
 		}
 	}
 	return res
 }
 
-func (m *serverMetrics) GetProxyTraffic(name string) (res *ProxyTrafficInfo) {
+func (m *serverMetrics) GetProxyTraffic(proxyID string) (res *ProxyTrafficInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	proxyStats, ok := m.info.ProxyStatistics[name]
+	proxyStats, ok := m.info.ProxyStatistics[proxyID]
 	if ok {
 		res = &ProxyTrafficInfo{
-			Name: name,
+			Name: proxyStats.Name,
 		}
 		res.TrafficIn = proxyStats.TrafficIn.GetLastDaysCount(ReserveDays)
 		res.TrafficOut = proxyStats.TrafficOut.GetLastDaysCount(ReserveDays)

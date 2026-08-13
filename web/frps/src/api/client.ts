@@ -20,7 +20,6 @@ export const getClientsV2 = (params: ClientListV2Params = {}) => {
       status:
         params.status && params.status !== 'all' ? params.status : undefined,
       q: params.q || undefined,
-      user: params.user,
       clientID: params.clientID || undefined,
       runID: params.runID || undefined,
     })}`,

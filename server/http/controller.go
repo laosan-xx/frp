@@ -46,6 +46,7 @@ type Controller struct {
 
 type ProxyManager interface {
 	GetByName(name string) (proxy.Proxy, bool)
+	GetByID(proxyID string) (proxy.Proxy, bool)
 }
 
 // CommandSender is the interface for sending commands to clients through the control connection.
@@ -105,7 +106,6 @@ func (c *Controller) APIClientList(ctx *httppkg.Context) (any, error) {
 		return nil, fmt.Errorf("client registry unavailable")
 	}
 
-	userFilter := ctx.Query("user")
 	clientIDFilter := ctx.Query("clientId")
 	runIDFilter := ctx.Query("runId")
 	statusFilter := strings.ToLower(ctx.Query("status"))
@@ -113,9 +113,6 @@ func (c *Controller) APIClientList(ctx *httppkg.Context) (any, error) {
 	records := c.clientRegistry.List()
 	items := make([]model.ClientInfoResp, 0, len(records))
 	for _, info := range records {
-		if userFilter != "" && info.User != userFilter {
-			continue
-		}
 		if clientIDFilter != "" && info.ClientID() != clientIDFilter {
 			continue
 		}
@@ -192,7 +189,11 @@ func (c *Controller) APIProxyTraffic(ctx *httppkg.Context) (any, error) {
 
 	trafficResp := model.GetProxyTrafficResp{}
 	trafficResp.Name = name
-	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(name)
+	ps := mem.StatsCollector.GetProxyByName(name)
+	if ps == nil {
+		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
+	}
+	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(ps.ProxyID)
 
 	if proxyTrafficInfo == nil {
 		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
@@ -252,7 +253,7 @@ func (c *Controller) getProxyStatsByType(proxyType string) (proxyInfos []*model.
 			User:     ps.User,
 			ClientID: ps.ClientID,
 		}
-		if pxy, ok := c.pxyManager.GetByName(ps.Name); ok {
+		if pxy, ok := c.pxyManager.GetByID(ps.ProxyID); ok {
 			proxyInfo.Conf = getConfFromConfigurer(pxy.GetConfigurer())
 			proxyInfo.Status = "online"
 		} else {

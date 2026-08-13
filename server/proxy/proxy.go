@@ -332,13 +332,13 @@ func (pxy *BaseProxy) handleUserTCPConnection(userConn net.Conn) {
 	xl.Debugf("join connections, workConn(l[%s] r[%s]) userConn(l[%s] r[%s])", workConn.LocalAddr().String(),
 		workConn.RemoteAddr().String(), userConn.LocalAddr().String(), userConn.RemoteAddr().String())
 
-	name := pxy.GetName()
+	proxyID := pxy.GetProxyID()
 	proxyType := cfg.Type
-	metrics.Server.OpenConnection(name, proxyType)
+	metrics.Server.OpenConnection(proxyID, proxyType)
 	inCount, outCount, _ := pxy.joinUserConnection(local, userConn, proxyType, xl)
-	metrics.Server.CloseConnection(name, proxyType)
-	metrics.Server.AddTrafficIn(name, proxyType, inCount)
-	metrics.Server.AddTrafficOut(name, proxyType, outCount)
+	metrics.Server.CloseConnection(proxyID, proxyType)
+	metrics.Server.AddTrafficIn(proxyID, proxyType, inCount)
+	metrics.Server.AddTrafficOut(proxyID, proxyType, outCount)
 	xl.Debugf("join connections closed")
 }
 
@@ -648,6 +648,16 @@ func (pm *Manager) GetByName(name string) (pxy Proxy, ok bool) {
 	if !ok {
 		return nil, false
 	}
+	pxy, ok = pm.pxys[proxyID]
+	return pxy, ok
+}
+
+// GetByID looks up a proxy by its deterministic proxy id. Unlike GetByName,
+// it unambiguously resolves the exact proxy even when several clients register
+// proxies with the same raw name.
+func (pm *Manager) GetByID(proxyID string) (pxy Proxy, ok bool) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
 	pxy, ok = pm.pxys[proxyID]
 	return pxy, ok
 }
