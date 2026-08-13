@@ -118,7 +118,6 @@ const { t } = useI18n()
 const { isMobile } = useResponsive()
 
 const allProxyTypes = [
-  { label: 'All', value: 'all' },
   { label: 'TCP', value: 'tcp' },
   { label: 'UDP', value: 'udp' },
   { label: 'HTTP', value: 'http' },
@@ -129,16 +128,10 @@ const allProxyTypes = [
   { label: 'SUDP', value: 'sudp' },
 ]
 
-const proxyTypes = computed(() =>
-  isMobile.value
-    ? allProxyTypes.filter((item) => item.value !== 'all')
-    : allProxyTypes,
-)
+const proxyTypes = computed(() => allProxyTypes)
 
-const initialType = (route.params.type as string) || 'all'
-const activeType = ref(
-  isMobile.value && initialType === 'all' ? 'http' : initialType,
-)
+const initialType = (route.params.type as string) || 'tcp'
+const activeType = ref(initialType)
 const proxies = ref<BaseProxy[]>([])
 const loading = ref(false)
 const searchText = ref('')

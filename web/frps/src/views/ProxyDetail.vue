@@ -35,6 +35,9 @@
             </div>
             <div class="header-info">
               <div class="header-title-row">
+                <span v-if="proxy.user" class="user-tag">{{
+                  proxy.clientDisplayName
+                }}</span>
                 <h1 class="proxy-name">{{ proxy.name }}</h1>
                 <span class="type-tag">{{ proxy.type.toUpperCase() }}</span>
                 <span class="status-badge" :class="proxy.status">
@@ -42,14 +45,14 @@
                 </span>
               </div>
               <div class="header-meta">
-                <!-- <router-link
-                  v-if="proxy.clientID"
-                  :to="clientLink"
+                <router-link
+                  v-if="proxy.user"
+                  :to="`/client/${proxy.clientKey}`"
                   class="meta-link"
                 >
                   <el-icon><Monitor /></el-icon>
                   <span>{{ proxy.clientDisplayName }}</span>
-                </router-link> -->
+                </router-link>
                 <span v-if="proxy.lastStartTime" class="meta-text">
                   <!-- <span class="meta-sep">·</span> -->
                   {{ $t('proxyDetail.lastStarted') }} {{ proxy.lastStartTime }}
@@ -246,6 +249,7 @@ import {
   Lightning,
   Tickets,
   Location,
+  Monitor,
 } from '@element-plus/icons-vue'
 import { getProxyByIDV2 } from '../api/proxy'
 import { getServerInfo } from '../api/server'
@@ -546,6 +550,20 @@ function copyPort() {
   background: var(--el-fill-color-dark);
   color: var(--el-text-color-secondary);
   border: 1px solid var(--el-border-color-lighter);
+}
+
+.user-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  border: 1px solid var(--el-color-primary-light-7);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-badge {
@@ -902,6 +920,13 @@ html.dark .config-item-icon.route {
     padding: 2px 8px;
     font-size: 11px;
     flex-shrink: 0;
+  }
+
+  .user-tag {
+    padding: 2px 8px;
+    font-size: 11px;
+    max-width: 120px;
+    flex-shrink: 1;
   }
 
   .status-badge {

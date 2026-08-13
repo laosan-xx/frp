@@ -718,7 +718,7 @@ func (ctl *Control) loginUserInfo() plugin.UserInfo {
 
 func (ctl *Control) closeProxy(pxy proxy.Proxy) {
 	pxy.Close()
-	ctl.sessionCtx.PxyManager.Del(pxy.GetName())
+	ctl.sessionCtx.PxyManager.Del(pxy.GetProxyID())
 	ctl.serverMetrics.CloseProxy(pxy.GetName(), pxy.GetConfigurer().GetBaseConfig().Type)
 
 	notifyContent := &plugin.CloseProxyContent{
@@ -979,7 +979,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		}()
 	}
 
-	if ctl.sessionCtx.PxyManager.Exist(pxyMsg.ProxyName) {
+	if ctl.sessionCtx.PxyManager.Exist(pxy.GetProxyID()) {
 		err = fmt.Errorf("proxy [%s] already exists", pxyMsg.ProxyName)
 		return remoteAddr, err
 	}
@@ -994,7 +994,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		}
 	}()
 
-	err = ctl.sessionCtx.PxyManager.Add(pxyMsg.ProxyName, pxy)
+	err = ctl.sessionCtx.PxyManager.Add(pxy.GetProxyID(), pxy)
 	if err != nil {
 		return remoteAddr, err
 	}

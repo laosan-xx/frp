@@ -3,6 +3,9 @@
     <div class="card-main">
       <div class="card-left">
         <div class="card-header">
+          <span v-if="proxy.user" class="user-tag">{{
+            proxy.clientDisplayName
+          }}</span>
           <span class="proxy-name">{{ proxy.name }}</span>
           <span v-if="showType" class="type-tag">{{
             proxy.type.toUpperCase()
@@ -125,6 +128,19 @@ const proxyLink = computed(() => `/proxy/${props.proxy.id}`)
   color: var(--el-text-color-secondary);
 }
 
+.user-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .card-meta {
   display: flex;
   align-items: center;
@@ -228,6 +244,12 @@ const proxyLink = computed(() => `/proxy/${props.proxy.id}`)
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .user-tag {
+    max-width: 100px;
+    font-size: 10px;
+    padding: 1px 5px;
   }
 
   .card-meta {

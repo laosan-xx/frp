@@ -592,45 +592,62 @@ func NewProxy(ctx context.Context, options *Options) (pxy Proxy, err error) {
 }
 
 type Manager struct {
-	// proxies indexed by proxy name
+	// proxies indexed by the deterministic proxy id (md5(clientID/name)).
 	pxys map[string]Proxy
+	// nameIndex maps the raw proxy name back to its proxy id so callers that
+	// only know the name (e.g. the HTTP API) can still look proxies up.
+	nameIndex map[string]string
 
 	mu sync.RWMutex
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		pxys: make(map[string]Proxy),
+		pxys:      make(map[string]Proxy),
+		nameIndex: make(map[string]string),
 	}
 }
 
-func (pm *Manager) Add(name string, pxy Proxy) error {
+// Add registers a proxy keyed by its deterministic proxy id. Two proxies with
+// the same raw name but different client ids no longer collide.
+func (pm *Manager) Add(proxyID string, pxy Proxy) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	if _, ok := pm.pxys[name]; ok {
-		return fmt.Errorf("proxy name [%s] is already in use", name)
+	if _, ok := pm.pxys[proxyID]; ok {
+		return fmt.Errorf("proxy [%s] already exists", pxy.GetName())
 	}
 
-	pm.pxys[name] = pxy
+	pm.pxys[proxyID] = pxy
+	pm.nameIndex[pxy.GetName()] = proxyID
 	return nil
 }
 
-func (pm *Manager) Exist(name string) bool {
+// Exist reports whether a proxy with the given proxy id is registered.
+func (pm *Manager) Exist(proxyID string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	_, ok := pm.pxys[name]
+	_, ok := pm.pxys[proxyID]
 	return ok
 }
 
-func (pm *Manager) Del(name string) {
+// Del removes a proxy by its deterministic proxy id.
+func (pm *Manager) Del(proxyID string) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	delete(pm.pxys, name)
+	if pxy, ok := pm.pxys[proxyID]; ok {
+		delete(pm.nameIndex, pxy.GetName())
+		delete(pm.pxys, proxyID)
+	}
 }
 
+// GetByName looks up a proxy by its raw name via the name index.
 func (pm *Manager) GetByName(name string) (pxy Proxy, ok bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	pxy, ok = pm.pxys[name]
+	proxyID, ok := pm.nameIndex[name]
+	if !ok {
+		return nil, false
+	}
+	pxy, ok = pm.pxys[proxyID]
 	return pxy, ok
 }

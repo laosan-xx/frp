@@ -197,16 +197,16 @@ func buildCaptchaSVG(code string) string {
 		stepX  = 18
 	)
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&b,
 		"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\">",
 		w, h, w, h,
-	))
+	)
 	// Soft gradient background
 	b.WriteString("<defs><linearGradient id=\"bg\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">")
 	b.WriteString("<stop offset=\"0%\" stop-color=\"#eef4ff\"/>")
 	b.WriteString("<stop offset=\"100%\" stop-color=\"#e0f7fa\"/>")
 	b.WriteString("</linearGradient></defs>")
-	b.WriteString(fmt.Sprintf("<rect width=\"%d\" height=\"%d\" rx=\"8\" fill=\"url(#bg)\"/>", w, h))
+	fmt.Fprintf(&b, "<rect width=\"%d\" height=\"%d\" rx=\"8\" fill=\"url(#bg)\"/>", w, h)
 
 	// Interference lines
 	for i := 0; i < 3; i++ {
@@ -215,10 +215,10 @@ func buildCaptchaSVG(code string) string {
 		x2 := rand.Intn(w)
 		y2 := rand.Intn(h)
 		color := captchaPalette[rand.Intn(len(captchaPalette))]
-		b.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&b,
 			"<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\" stroke-opacity=\"0.35\"/>",
 			x1, y1, x2, y2, color,
-		))
+		)
 	}
 
 	// Interference dots
@@ -227,10 +227,10 @@ func buildCaptchaSVG(code string) string {
 		cy := rand.Intn(h)
 		cr := rand.Intn(2) + 1
 		color := captchaPalette[rand.Intn(len(captchaPalette))]
-		b.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&b,
 			"<circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"%s\" fill-opacity=\"0.3\"/>",
 			cx, cy, cr, color,
-		))
+		)
 	}
 
 	// Characters with slight rotation and individual colors
@@ -239,10 +239,10 @@ func buildCaptchaSVG(code string) string {
 		y := 29
 		rot := rand.Intn(30) - 15
 		color := captchaPalette[rand.Intn(len(captchaPalette))]
-		b.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&b,
 			"<text x=\"%d\" y=\"%d\" font-family=\"'Courier New',monospace\" font-size=\"24\" font-weight=\"700\" fill=\"%s\" transform=\"rotate(%d %d %d)\">%c</text>",
 			x, y, color, rot, x, y, ch,
-		))
+		)
 	}
 	b.WriteString("</svg>")
 	return b.String()
