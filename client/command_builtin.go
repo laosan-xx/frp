@@ -158,7 +158,7 @@ func (e *builtinCommandExecutor) cmdNodeLink(payload string) (string, string) {
 	// actually wrote so mismatches are visible instead of silently dropped.
 	var diag string
 	if node.Protocol == "hysteria2" {
-		diag = "\n[诊断] 实际写入的 UCI 字段:\n" + uciShowSection("passwall." + secName)
+		diag = "\n[诊断] 实际写入的 UCI 字段:\n" + uciShowSection("passwall."+secName)
 	}
 
 	return "ok", fmt.Sprintf("已添加节点: %s (%s %s | %s:%s)", node.Remarks, node.Type, node.Protocol, node.Address, node.Port) + diag
@@ -1942,11 +1942,11 @@ func (e *builtinCommandExecutor) cmdModifySystem(payload string) (string, string
 	}
 
 	var req struct {
-		WAN6       *bool  `json:"wan6"`
-		SSID       string `json:"ssid"`
-		Password   string `json:"password"`
+		WAN6         *bool  `json:"wan6"`
+		SSID         string `json:"ssid"`
+		Password     string `json:"password"`
 		RootPassword string `json:"root_password"`
-		Bands      []struct {
+		Bands        []struct {
 			Key      string `json:"key"`
 			Enabled  *bool  `json:"enabled"`
 			SSID     string `json:"ssid"`

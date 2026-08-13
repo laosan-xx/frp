@@ -99,7 +99,7 @@ type BaseProxy struct {
 	udpPacketCodec string
 	// proxyID is a deterministic global id of the proxy, derived from the
 	// client id and the proxy name. It is stable across frps restarts.
-	proxyID        string
+	proxyID string
 
 	mu  sync.RWMutex
 	xl  *xlog.Logger
