@@ -76,6 +76,7 @@ export const toLegacyProxyStats = (proxy: ProxyV2Info): ProxyStatsInfo => {
   const activeSpec = getActiveProxySpec(proxy.spec)
 
   return {
+    id: proxy.id,
     name: proxy.name,
     type,
     conf: proxy.status.phase === 'offline' ? null : activeSpec,
@@ -94,9 +95,9 @@ export const getProxy = (type: string, name: string) => {
   return http.get<ProxyStatsInfo>(`../api/proxy/${type}/${name}`)
 }
 
-export const getProxyByNameV2 = async (name: string) => {
+export const getProxyByIDV2 = async (id: string) => {
   const proxy = await http.getV2<ProxyV2Info>(
-    `../api/v2/proxies/${encodeURIComponent(name)}`,
+    `../api/v2/proxies/${encodeURIComponent(id)}`,
   )
   return toLegacyProxyStats(proxy)
 }
@@ -105,9 +106,9 @@ export const getProxyByName = (name: string) => {
   return http.get<ProxyStatsInfo>(`../api/proxies/${name}`)
 }
 
-export const getProxyTraffic = (name: string) => {
+export const getProxyTraffic = (id: string) => {
   return http.getV2<TrafficResponse>(
-    `../api/v2/proxies/${encodeURIComponent(name)}/traffic`,
+    `../api/v2/proxies/${encodeURIComponent(id)}/traffic`,
   )
 }
 

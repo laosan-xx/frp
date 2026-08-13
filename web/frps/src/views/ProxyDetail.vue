@@ -213,7 +213,7 @@
             <h2>{{ $t('proxyDetail.trafficStats') }}</h2>
           </div>
           <div class="traffic-body">
-            <Traffic :proxy-name="proxyName" />
+            <Traffic :proxyID="proxyID" />
           </div>
         </div>
       </template>
@@ -247,7 +247,7 @@ import {
   Tickets,
   Location,
 } from '@element-plus/icons-vue'
-import { getProxyByNameV2 } from '../api/proxy'
+import { getProxyByIDV2 } from '../api/proxy'
 import { getServerInfo } from '../api/server'
 import {
   BaseProxy,
@@ -265,9 +265,9 @@ import type { ServerInfo } from '../types/server'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const proxyName = computed(() => route.params.name as string)
+const proxyID = computed(() => route.params.id as string)
 const proxyDisplayName = computed(() => {
-  const name = proxyName.value
+  const name = proxy.value?.name || proxyID.value
   const idx = name.lastIndexOf('.')
   return idx > 0 ? name.substring(idx + 1) : name
 })
@@ -352,14 +352,14 @@ const fetchServerInfo = async () => {
 }
 
 const fetchProxy = async () => {
-  const name = proxyName.value
-  if (!name) {
+  const id = proxyID.value
+  if (!id) {
     loading.value = false
     return
   }
 
   try {
-    const data = await getProxyByNameV2(name)
+    const data = await getProxyByIDV2(id)
     const info = await fetchServerInfo()
     const config = info.config
     const type = data.type || data.conf?.type || ''
@@ -488,7 +488,14 @@ function copyPort() {
 
 /* Header Section */
 .header-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
   margin-bottom: 24px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
 }
 
 .header-main {
@@ -859,6 +866,9 @@ html.dark .config-item-icon.route {
   }
 
   .header-section {
+    padding: 16px;
+    border-radius: 10px;
+    gap: 12px;
     margin-bottom: 12px;
   }
 
@@ -902,6 +912,10 @@ html.dark .config-item-icon.route {
 
   .header-meta {
     font-size: 12px;
+  }
+
+  .header-meta .meta-sep {
+    display: none;
   }
 
   .stats-bar {

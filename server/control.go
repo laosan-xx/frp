@@ -933,6 +933,13 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		RunID: ctl.runID,
 	}
 
+	// Client id is used together with the proxy name to generate a
+	// deterministic global proxy id.
+	clientID := ctl.sessionCtx.LoginMsg.ClientID
+	if clientID == "" {
+		clientID = ctl.runID
+	}
+
 	// NewProxy will return an interface Proxy.
 	// In fact, it creates different proxies based on the proxy type. We just call run() here.
 	pxy, err := proxy.NewProxy(ctl.ctx, &proxy.Options{
@@ -946,6 +953,7 @@ func (ctl *Control) RegisterProxy(pxyMsg *msg.NewProxy) (remoteAddr string, err 
 		EncryptionKey:      ctl.sessionCtx.EncryptionKey,
 		WireProtocol:       ctl.sessionCtx.WireProtocol,
 		UDPPacketCodec:     ctl.sessionCtx.UDPPacketCodec,
+		ClientID:           clientID,
 	})
 	if err != nil {
 		return remoteAddr, err

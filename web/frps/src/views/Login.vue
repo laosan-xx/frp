@@ -377,6 +377,20 @@ onMounted(() => {
   margin-top: 8px;
 }
 
+/* Inputs follow the active theme on desktop too */
+.login-card :deep(.el-input__wrapper) {
+  background: var(--color-bg-input, #fff);
+  box-shadow: 0 0 0 1px var(--header-border, #e4e7ed) inset;
+}
+
+.login-card :deep(.el-input__inner) {
+  color: var(--text-primary, #303133);
+}
+
+.captcha-box {
+  background: var(--color-bg-input, #fff);
+}
+
 .login-footer {
   display: none;
 }
@@ -539,9 +553,9 @@ onMounted(() => {
     background: linear-gradient(90deg, #3b82f6, #06b6d4);
   }
 
-  /* Keep inputs clean and full-width on light bg */
+  /* Keep inputs clean and full-width, following the active theme */
   .login-card :deep(.el-input__wrapper) {
-    background: #fff;
+    background: var(--color-bg-input, #fff);
     box-shadow: 0 0 0 1px var(--header-border, #e4e7ed) inset !important;
   }
 
@@ -554,11 +568,15 @@ onMounted(() => {
   }
 
   .login-card :deep(.el-input__prefix) {
-    color: #909399;
+    color: var(--text-muted, #909399);
+  }
+
+  .login-card :deep(.el-input__inner) {
+    color: var(--text-primary, #303133);
   }
 
   .captcha-box {
-    background: #fff;
+    background: var(--color-bg-input, #fff);
   }
 
   .submit-btn {

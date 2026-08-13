@@ -76,6 +76,15 @@ func (f *fakeStatsCollector) GetProxyByName(proxyName string) *mem.ProxyStats {
 	return f.proxies[proxyName]
 }
 
+func (f *fakeStatsCollector) GetProxyByID(proxyID string) *mem.ProxyStats {
+	for _, ps := range f.proxies {
+		if ps.ProxyID == proxyID {
+			return ps
+		}
+	}
+	return nil
+}
+
 func (f *fakeStatsCollector) GetProxyTraffic(name string) *mem.ProxyTrafficInfo {
 	return f.traffic[name]
 }
@@ -546,7 +555,7 @@ func TestAPIV2ProxyDetailAndTrafficEncodedName(t *testing.T) {
 	oldStatsCollector := mem.StatsCollector
 	mem.StatsCollector = &fakeStatsCollector{
 		proxies: map[string]*mem.ProxyStats{
-			name: {Name: name, Type: "tcp", User: "encoded"},
+			name: {Name: name, ProxyID: name, Type: "tcp", User: "encoded"},
 		},
 		traffic: map[string]*mem.ProxyTrafficInfo{
 			name: {
@@ -843,8 +852,8 @@ func newV2TestRouter(controller *Controller) *mux.Router {
 	encodedPathRouter.UseEncodedPath()
 	encodedPathRouter.HandleFunc("/api/v2/clients/{key}", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ClientDetail)).Methods(http.MethodGet)
 	router.HandleFunc("/api/v2/proxies", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyList)).Methods(http.MethodGet)
-	encodedPathRouter.HandleFunc("/api/v2/proxies/{name}/traffic", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyTraffic)).Methods(http.MethodGet)
-	encodedPathRouter.HandleFunc("/api/v2/proxies/{name}", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyDetail)).Methods(http.MethodGet)
+	encodedPathRouter.HandleFunc("/api/v2/proxies/{id}/traffic", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyTraffic)).Methods(http.MethodGet)
+	encodedPathRouter.HandleFunc("/api/v2/proxies/{id}", httppkg.MakeHTTPHandlerFuncV2(controller.APIV2ProxyDetail)).Methods(http.MethodGet)
 	router.HandleFunc("/api/serverinfo", httppkg.MakeHTTPHandlerFunc(controller.APIServerInfo)).Methods(http.MethodGet)
 	router.HandleFunc("/api/clients", httppkg.MakeHTTPHandlerFunc(controller.APIClientList)).Methods(http.MethodGet)
 	router.HandleFunc("/api/proxy/{type}", httppkg.MakeHTTPHandlerFunc(controller.APIProxyByType)).Methods(http.MethodGet)

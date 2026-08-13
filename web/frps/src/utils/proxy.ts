@@ -1,4 +1,5 @@
 class BaseProxy {
+  id: string
   name: string
   type: string
   annotations: Map<string, string>
@@ -25,6 +26,7 @@ class BaseProxy {
   routeByHTTPUser: string
 
   constructor(proxyStats: any) {
+    this.id = proxyStats.id || proxyStats.name
     this.name = proxyStats.name
     this.type = ''
     this.annotations = new Map<string, string>()

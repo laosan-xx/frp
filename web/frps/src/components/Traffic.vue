@@ -60,7 +60,7 @@ import type { TrafficResponse } from '../types/proxy'
 const { t } = useI18n()
 
 const props = defineProps<{
-  proxyName: string
+  proxyID: string
 }>()
 
 const loading = ref(false)
@@ -98,7 +98,7 @@ const processData = (history: TrafficResponse['history'] = []) => {
 
 const fetchData = () => {
   loading.value = true
-  getProxyTraffic(props.proxyName)
+  getProxyTraffic(props.proxyID)
     .then((json) => {
       processData(json.history)
     })

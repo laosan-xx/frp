@@ -64,7 +64,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const proxyLink = computed(() => `/proxy/${props.proxy.name}`)
+const proxyLink = computed(() => `/proxy/${props.proxy.id}`)
 </script>
 
 <style scoped>

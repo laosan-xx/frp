@@ -552,14 +552,14 @@ func (c *Controller) APIV2ProxyList(ctx *httppkg.Context) (any, error) {
 	return buildV2PageResp(items, page, pageSize), nil
 }
 
-// /api/v2/proxies/{name}
+// /api/v2/proxies/{id}
 func (c *Controller) APIV2ProxyDetail(ctx *httppkg.Context) (any, error) {
-	name, err := decodeV2PathParam(ctx, "name", "proxy name")
+	id, err := decodeV2PathParam(ctx, "id", "proxy id")
 	if err != nil {
 		return nil, err
 	}
 
-	ps := mem.StatsCollector.GetProxyByName(name)
+	ps := mem.StatsCollector.GetProxyByID(id)
 	if ps == nil {
 		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
 	}
@@ -568,17 +568,22 @@ func (c *Controller) APIV2ProxyDetail(ctx *httppkg.Context) (any, error) {
 
 // /api/v2/proxies/{name}/traffic
 func (c *Controller) APIV2ProxyTraffic(ctx *httppkg.Context) (any, error) {
-	name, err := decodeV2PathParam(ctx, "name", "proxy name")
+	id, err := decodeV2PathParam(ctx, "id", "proxy id")
 	if err != nil {
 		return nil, err
 	}
 
-	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(name)
+	ps := mem.StatsCollector.GetProxyByID(id)
+	if ps == nil {
+		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
+	}
+
+	proxyTrafficInfo := mem.StatsCollector.GetProxyTraffic(ps.Name)
 	if proxyTrafficInfo == nil {
 		return nil, httppkg.NewError(http.StatusNotFound, "no proxy info found")
 	}
 
-	return buildV2ProxyTrafficResp(name, proxyTrafficInfo, time.Now()), nil
+	return buildV2ProxyTrafficResp(ps.Name, proxyTrafficInfo, time.Now()), nil
 }
 
 func decodeV2PathParam(ctx *httppkg.Context, key string, label string) (string, error) {
@@ -833,6 +838,7 @@ func (c *Controller) buildV2ProxyResp(ps *mem.ProxyStats) model.V2ProxyResp {
 	}
 
 	return model.V2ProxyResp{
+		ID:       ps.ProxyID,
 		Name:     ps.Name,
 		User:     ps.User,
 		ClientID: ps.ClientID,

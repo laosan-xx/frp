@@ -25,7 +25,6 @@ import (
 	fmux "github.com/hashicorp/yamux"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
-	"github.com/laosan-xx/frp/pkg/naming"
 	"github.com/laosan-xx/frp/pkg/nathole"
 	"github.com/laosan-xx/frp/pkg/transport"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
@@ -84,7 +83,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	transactionID := nathole.NewTransactionID()
 	natHoleClientMsg := &msg.NatHoleClient{
 		TransactionID: transactionID,
-		ProxyName:     naming.AddUserPrefix(pxy.clientCfg.User, pxy.cfg.Name),
+		ProxyName:     pxy.cfg.Name,
 		Sid:           natHoleSidMsg.Sid,
 		MappedAddrs:   prepareResult.Addrs,
 		AssistedAddrs: prepareResult.AssistedAddrs,

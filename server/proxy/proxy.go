@@ -33,6 +33,7 @@ import (
 	"github.com/laosan-xx/frp/pkg/proto/wire"
 	"github.com/laosan-xx/frp/pkg/util/limit"
 	netpkg "github.com/laosan-xx/frp/pkg/util/net"
+	"github.com/laosan-xx/frp/pkg/util/util"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
 	"github.com/laosan-xx/frp/server/controller"
 	"github.com/laosan-xx/frp/server/metrics"
@@ -70,6 +71,7 @@ type Proxy interface {
 	Context() context.Context
 	Run() (remoteAddr string, err error)
 	GetName() string
+	GetProxyID() string
 	GetConfigurer() v1.ProxyConfigurer
 	GetWorkConnFromPool(src, dst net.Addr) (workConn net.Conn, err error)
 	GetUsedPortsNum() int
@@ -95,6 +97,9 @@ type BaseProxy struct {
 	configurer     v1.ProxyConfigurer
 	wireProtocol   string
 	udpPacketCodec string
+	// proxyID is a deterministic global id of the proxy, derived from the
+	// client id and the proxy name. It is stable across frps restarts.
+	proxyID        string
 
 	mu  sync.RWMutex
 	xl  *xlog.Logger
@@ -103,6 +108,18 @@ type BaseProxy struct {
 
 func (pxy *BaseProxy) GetName() string {
 	return pxy.name
+}
+
+// GetProxyID returns the deterministic global id of the proxy.
+func (pxy *BaseProxy) GetProxyID() string {
+	return pxy.proxyID
+}
+
+// genProxyID generates a deterministic global id for a proxy from the client
+// id and proxy name using md5. The same client id + proxy name always yields
+// the same id, so it stays stable across frps restarts.
+func genProxyID(clientID, proxyName string) string {
+	return util.GenProxyID(clientID, proxyName)
 }
 
 func (pxy *BaseProxy) Context() context.Context {
@@ -526,6 +543,10 @@ type Options struct {
 	EncryptionKey      []byte
 	WireProtocol       string
 	UDPPacketCodec     string
+	// ClientID is the unique id of the client that registers this proxy.
+	// It is used together with the proxy name to generate a deterministic
+	// global proxy id that survives frps restarts.
+	ClientID string
 }
 
 func NewProxy(ctx context.Context, options *Options) (pxy Proxy, err error) {
@@ -554,6 +575,9 @@ func NewProxy(ctx context.Context, options *Options) (pxy Proxy, err error) {
 		configurer:     configurer,
 		wireProtocol:   options.WireProtocol,
 		udpPacketCodec: options.UDPPacketCodec,
+		// Generate a deterministic global proxy id from the client id and
+		// proxy name so it stays stable across frps restarts.
+		proxyID: genProxyID(options.ClientID, configurer.GetBaseConfig().Name),
 	}
 
 	factory := proxyFactoryRegistry[reflect.TypeOf(configurer)]

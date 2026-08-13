@@ -74,6 +74,7 @@ type V2ClientStatusResp struct {
 }
 
 type V2ProxyResp struct {
+	ID       string            `json:"id"`
 	Name     string            `json:"name"`
 	User     string            `json:"user"`
 	ClientID string            `json:"clientID"`

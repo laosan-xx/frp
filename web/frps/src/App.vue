@@ -14,10 +14,12 @@
             <button
               v-if="isMobile"
               class="hamburger-btn"
+              :class="{ 'is-open': sidebarOpen }"
               @click="toggleSidebar"
-              aria-label="Toggle menu"
+              :aria-label="sidebarOpen ? 'Close menu' : 'Toggle menu'"
+              :aria-expanded="sidebarOpen"
             >
-              <span class="hamburger-icon">&#9776;</span>
+              <span class="hamburger-icon">{{ sidebarOpen ? '✕' : '☰' }}</span>
             </button>
             <div class="logo-wrapper">
               <LogoIcon class="logo-icon" />
@@ -67,8 +69,9 @@
       <div class="layout">
         <!-- Mobile overlay -->
         <div
-          v-if="isMobile && sidebarOpen"
+          v-show="isMobile"
           class="sidebar-overlay"
+          :class="{ 'is-visible': sidebarOpen }"
           @click="closeSidebar"
         />
 
@@ -245,6 +248,8 @@ body {
   background: var(--header-bg);
   border-bottom: 1px solid var(--header-border);
   height: var(--header-height);
+  position: relative;
+  z-index: 101;
 }
 
 .header-content {
@@ -413,20 +418,29 @@ html.dark .theme-switch {
   height: 36px;
   border: none;
   border-radius: 6px;
-  background: #f0f0f0;
+  background: var(--hover-bg);
   cursor: pointer;
   padding: 0;
   transition: background 0.15s ease;
 }
 
 .hamburger-btn:hover {
-  background: var(--hover-bg);
+  background: #d4d4d4;
+}
+
+html.dark .hamburger-btn:hover {
+  background: #3a3d5c;
 }
 
 .hamburger-icon {
   font-size: 20px;
   line-height: 1;
   color: var(--text-primary);
+  transition: transform 0.25s ease;
+}
+
+.hamburger-btn.is-open .hamburger-icon {
+  transform: rotate(90deg);
 }
 
 /* Mobile overlay */
@@ -435,6 +449,16 @@ html.dark .theme-switch {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 99;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.25s ease,
+    visibility 0.25s ease;
+}
+
+.sidebar-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Content */
@@ -592,7 +616,7 @@ html.dark .el-switch {
 
   .sidebar {
     position: fixed;
-    top: var(--header-height);
+    top: 0;
     left: 0;
     bottom: 0;
     z-index: 100;
@@ -600,10 +624,18 @@ html.dark .el-switch {
     transform: translateX(-100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     border-right: 1px solid var(--header-border);
+    box-shadow: none;
+    padding-top: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  }
+
+  html.dark .sidebar.mobile-open {
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
   }
 
   #content {

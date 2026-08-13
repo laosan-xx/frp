@@ -1,4 +1,5 @@
 export interface ProxyStatsInfo {
+  id: string
   name: string
   type?: string
   conf: any
@@ -27,6 +28,7 @@ export interface ProxyListV2Params {
 }
 
 export interface ProxyV2Info {
+  id: string
   name: string
   user: string
   clientID: string

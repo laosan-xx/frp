@@ -20,6 +20,7 @@ import (
 
 	"github.com/laosan-xx/frp/pkg/util/log"
 	"github.com/laosan-xx/frp/pkg/util/metric"
+	"github.com/laosan-xx/frp/pkg/util/util"
 	server "github.com/laosan-xx/frp/server/metrics"
 	"k8s.io/utils/clock"
 )
@@ -148,6 +149,7 @@ func (m *serverMetrics) NewProxy(name string, proxyType string, user string, cli
 	}
 	proxyStats.User = user
 	proxyStats.ClientID = clientID
+	proxyStats.ProxyID = util.GenProxyID(clientID, name)
 	proxyStats.LastStartTime = m.clock.Now()
 }
 
@@ -232,6 +234,7 @@ func toProxyStats(name string, proxyStats *ProxyStatistics) *ProxyStats {
 		Type:            proxyStats.ProxyType,
 		User:            proxyStats.User,
 		ClientID:        proxyStats.ClientID,
+		ProxyID:         proxyStats.ProxyID,
 		TodayTrafficIn:  proxyStats.TrafficIn.TodayCount(),
 		TodayTrafficOut: proxyStats.TrafficOut.TodayCount(),
 		CurConns:        int64(proxyStats.CurConns.Count()),
@@ -279,6 +282,19 @@ func (m *serverMetrics) GetProxyByName(proxyName string) (res *ProxyStats) {
 	proxyStats, ok := m.info.ProxyStatistics[proxyName]
 	if ok {
 		res = toProxyStats(proxyName, proxyStats)
+	}
+	return res
+}
+
+func (m *serverMetrics) GetProxyByID(proxyID string) (res *ProxyStats) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for name, proxyStats := range m.info.ProxyStatistics {
+		if proxyStats.ProxyID == proxyID {
+			res = toProxyStats(name, proxyStats)
+			break
+		}
 	}
 	return res
 }

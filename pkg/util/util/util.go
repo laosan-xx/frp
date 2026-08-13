@@ -32,6 +32,14 @@ func RandID() (id string, err error) {
 	return RandIDWithLen(16)
 }
 
+// GenProxyID generates a deterministic global id for a proxy from the client
+// id and proxy name using md5. The same client id + proxy name always yields
+// the same id, so it stays stable across frps restarts.
+func GenProxyID(clientID, proxyName string) string {
+	sum := md5.Sum([]byte(clientID + "/" + proxyName))
+	return hex.EncodeToString(sum[:])[:16]
+}
+
 // RandIDWithLen return a rand string with idLen length.
 func RandIDWithLen(idLen int) (id string, err error) {
 	if idLen <= 0 {

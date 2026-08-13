@@ -467,7 +467,7 @@
                       @click="rebootSystem"
                     />
                   </div>
-                  <div class="system-toggle-item">
+                  <div class="system-toggle-item" :class="{ 'is-disabled-row': defaultPasswordOn }">
                     <span class="system-toggle-label">
                       {{ $t('clientDetail.sysDefaultPassword') }}
                       <span v-if="defaultPasswordOn && defaultPasswordCountdown > 0" class="system-toggle-ssid">
@@ -485,7 +485,7 @@
                       @change="(v: any) => onToggleDefaultPassword(v)"
                     />
                   </div>
-                  <div class="system-toggle-item">
+                  <div class="system-toggle-item" :class="{ 'is-disabled-row': !defaultPasswordOn || defaultPasswordCountdown > 0 }">
                     <span class="system-toggle-label">
                       {{ $t('clientDetail.sysCommonPassword') }}
                     </span>
@@ -2908,6 +2908,49 @@ html.dark .system-toggle-item:hover {
   height: 28px;
 }
 
+/* Disabled switch styling: on mobile the default Element Plus disabled
+   state is too subtle, so we mute the whole row and give the switch a
+   clearly "locked" look so users can tell it isn't tappable. */
+.system-switch.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.system-toggle-item:has(.system-switch.is-disabled) {
+  opacity: 0.6;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-style: dashed;
+  border-color: var(--el-border-color-lighter, #ebeef5);
+}
+
+.system-toggle-item:has(.system-switch.is-disabled) .system-toggle-label {
+  color: var(--el-text-color-secondary, #909399);
+}
+
+html.dark .system-toggle-item:has(.system-switch.is-disabled) {
+  background: var(--el-fill-color-dark, #141414);
+  border-color: var(--el-border-color-extra-light, #2a2a2a);
+}
+
+/* Fallback for browsers without :has() support: mute the label when the
+   row's switch is disabled by keying off the item variant instead.
+   We add a `.is-disabled-row` class from the template for reliability. */
+.system-toggle-item.is-disabled-row {
+  opacity: 0.6;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border-style: dashed;
+  border-color: var(--el-border-color-lighter, #ebeef5);
+}
+
+.system-toggle-item.is-disabled-row .system-toggle-label {
+  color: var(--el-text-color-secondary, #909399);
+}
+
+html.dark .system-toggle-item.is-disabled-row {
+  background: var(--el-fill-color-dark, #141414);
+  border-color: var(--el-border-color-extra-light, #2a2a2a);
+}
+
 .system-ssid-field {
   display: flex;
   flex-direction: column;
@@ -3002,6 +3045,7 @@ html.dark .system-toggle-item:hover {
 
 .node-name {
   font-weight: 500;
+  word-break: break-all;
 }
 
 .node-meta {

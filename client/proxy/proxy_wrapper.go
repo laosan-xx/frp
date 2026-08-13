@@ -28,7 +28,6 @@ import (
 	"github.com/laosan-xx/frp/client/health"
 	v1 "github.com/laosan-xx/frp/pkg/config/v1"
 	"github.com/laosan-xx/frp/pkg/msg"
-	"github.com/laosan-xx/frp/pkg/naming"
 	"github.com/laosan-xx/frp/pkg/transport"
 	"github.com/laosan-xx/frp/pkg/util/xlog"
 	"github.com/laosan-xx/frp/pkg/vnet"
@@ -116,7 +115,7 @@ func NewWrapper(
 		vnetController: vnetController,
 		xl:             xl,
 		ctx:            xlog.NewContext(ctx, xl),
-		wireName:       naming.AddUserPrefix(clientCfg.User, baseInfo.Name),
+		wireName:       baseInfo.Name,
 	}
 
 	if baseInfo.HealthCheck.Type != "" && baseInfo.LocalPort > 0 {

@@ -49,7 +49,7 @@ const router = createRouter({
       component: Proxies,
     },
     {
-      path: '/proxy/:name',
+      path: '/proxy/:id',
       name: 'ProxyDetail',
       component: ProxyDetail,
     },
